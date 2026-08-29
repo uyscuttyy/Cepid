@@ -1,0 +1,20 @@
+{
+  "name": "clash-test-agent",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node --env-file=.env --import tsx src/index.ts",
+    "preview": "node --env-file=.env --import tsx src/index.ts",
+    "autonomous": "node --env-file=.env --import tsx src/index.ts --execute --confirm-approval --confirm-order",
+    "test": "node --test --import tsx test/**/*.test.ts"
+  },
+  "dependencies": {
+    "@somnia-chain/markets-sdk": "^0.28.1",
+    "tsx": "^4.23.12",
+    "viem": "^2.55.19"
+  },
+  "devDependencies": {
+    "@types/node": "^26.3.0",
+    "typescript": "^7.0.2"
+  }
+}
