@@ -43,6 +43,7 @@ import { linkPatterns } from './memory/linker.js';
 import { updateScars } from './memory/scars.js';
 import { runDecay } from './memory/decay.js';
 import { SessionRepository } from './sessions/repository.js';
+import { EventStore } from './persistence/events.js';
 
 export interface OrchestratorOptions {
   execute: boolean;
@@ -68,6 +69,7 @@ export async function runOnce(opts: OrchestratorOptions): Promise<RunResult> {
   const config = loadConfig();
   const memory = new JsonMemoryRepository(config.dataDir);
   const sessions = new SessionRepository(config.dataDir);
+  const events = new EventStore();
   const provider = createMarketProvider(config, opts.mockSeed);
 
   const session = await openSession(sessions, config);
@@ -149,6 +151,55 @@ export async function runOnce(opts: OrchestratorOptions): Promise<RunResult> {
   }
 
   await sessions.upsert(session);
+
+  // Persist the decision as a structured event the UI can read.
+  await events.append({
+    type: 'preview',
+    at: new Date().toISOString(),
+    wallet: config.privateKey,
+    state,
+    session: { id: session.id },
+    market: {
+      id: market.id,
+      title: market.title,
+      asset: market.asset,
+      timeframe: market.timeframe,
+      yesPrice: market.yesPrice,
+      expiresAt: market.expiresAt,
+    },
+    conditions,
+    intent,
+    risk,
+    decision,
+    retrieved: retrieved.map((r) => ({
+      experience: {
+        id: r.experience.id,
+        outcome: r.experience.outcome,
+      },
+      similarity: r.similarity,
+      isScar: r.isScar,
+      isPattern: r.isPattern,
+      retrievalScore: r.retrievalScore,
+    })),
+    experienceId: experience?.id ?? null,
+  });
+
+  const orderSubmittedStates: ExecutionState[] = ['SUBMITTED', 'CONFIRMED', 'POSITION_OPEN'];
+  if (orderSubmittedStates.includes(state) && execution.txHash) {
+    await events.append({
+      type: 'order_submitted',
+      at: new Date().toISOString(),
+      wallet: config.privateKey,
+      marketId: market.id,
+      marketSymbol: market.id,
+      direction: intent.direction,
+      quantity: intent.shares,
+      price: intent.price,
+      collateral: intent.shares * intent.price,
+      hash: execution.txHash,
+      state,
+    });
+  }
 
   return {
     session,

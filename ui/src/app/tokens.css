@@ -1,0 +1,99 @@
+/* =============================================================================
+   CEPID — design tokens
+   -----------------------------------------------------------------------------
+   Source: /home/user_uy_scutty/skills/ui-design/SKILL.md
+
+   Principles:
+   - Small type hierarchy (display, title, section, body, label, mono)
+   - Spacing scale in 4px increments
+   - Status communicated by typography + color + spacing, not color alone
+   - No decorative gradients, no card-heavy nesting
+   - Mono numerics for prices, pnl, percentages
+   ============================================================================= */
+
+:root {
+  /* Color — light mode */
+  --bg:               #f7f6f3;
+  --bg-elevated:     #ffffff;
+  --bg-sunken:        #efede8;
+  --ink:              #1a1a1a;
+  --ink-2:            #4a4a48;
+  --ink-3:            #6f6f6c;
+  --ink-mute:         #9a9a96;
+  --border:           #e2e0db;
+  --border-strong:    #c9c7c0;
+  --accent:           #1f1f1f;        /* near-black, used for primary actions */
+  --accent-ink:       #ffffff;
+
+  /* Status (deliberately muted — not a crypto dashboard) */
+  --pos:              #2c6b3f;        /* win / gain / up */
+  --pos-soft:         #e3efe6;
+  --neg:              #8a2a2a;        /* loss / decline / down */
+  --neg-soft:         #f3e3e3;
+  --warn:             #8a6a1c;
+  --warn-soft:        #f3ecdc;
+  --info:             #2c4d6b;
+  --info-soft:        #e1ebf3;
+
+  /* Type — small, intentional hierarchy */
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Inter", "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+
+  --t-display: 700 2.25rem/1.1 var(--font-sans);
+  --t-title:    600 1.5rem/1.2  var(--font-sans);
+  --t-section:  600 0.875rem/1.3 var(--font-sans);
+  --t-body:     400 0.9375rem/1.55 var(--font-sans);
+  --t-label:    500 0.75rem/1.3   var(--font-sans);
+  --t-mono:     400 0.875rem/1.45 var(--font-mono);
+
+  /* Letter-spacing — small caps for labels, tightened for display */
+  --track-label:  0.06em;
+  --track-display: -0.01em;
+
+  /* Spacing — 4px scale */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 24px;
+  --s-6: 32px;
+  --s-7: 48px;
+  --s-8: 64px;
+
+  /* Layout */
+  --max-w: 1200px;
+  --gutter: clamp(20px, 4vw, 40px);
+
+  /* Radii — minimal, intentional */
+  --r-1: 2px;
+  --r-2: 4px;
+  --r-3: 8px;
+
+  /* Motion — short, subordinate */
+  --t-fast: 120ms ease;
+  --t-med:  200ms ease;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:            #0f0f0e;
+    --bg-elevated:  #181816;
+    --bg-sunken:    #0a0a09;
+    --ink:          #ececea;
+    --ink-2:        #b8b8b4;
+    --ink-3:        #888884;
+    --ink-mute:     #5a5a56;
+    --border:       #2a2a28;
+    --border-strong: #3f3f3c;
+    --accent:       #ececea;
+    --accent-ink:   #0f0f0e;
+    --pos:          #6fbf86;
+    --pos-soft:     #1c2a21;
+    --neg:          #d68080;
+    --neg-soft:     #2c1d1d;
+    --warn:         #d6b25c;
+    --warn-soft:    #2c2516;
+    --info:         #7ab0d6;
+    --info-soft:    #16242c;
+  }
+}
