@@ -4,41 +4,113 @@
 
 CEPID (Continuity Experience & Persistent Institutional Decision-memory) — a trading agent that accumulates experiential memory and uses it to change future decisions. Submission for the Sibyl Memory Hackathon.
 
-## Current state (audit complete, before restructure)
+## Current state
 
-Repo at `/home/user_uy_scutty/cepid` was scaffolded for a different project (binary-market agent against Somnia testnet + DreamDEX + a CLASH registration/activity layer). No commits yet, no `node_modules`, no `.env`.
+V1 foundation is complete and tested. 15/15 tests pass; clean typecheck; CLI runs end-to-end.
 
-## Audit summary
+```
+$ npm test
+# pass 15
+# fail 0
 
-| File | Classification | Notes |
-| --- | --- | --- |
-| `src/market-data.ts` | REFACTOR | Replace Somnia chain + DreamDEX SDK with Base testnet provider. Keep the `MarketSnapshot` shape. |
-| `src/wallet.ts` | REFACTOR | Clean viem abstraction. Swap RPC to Base Sepolia. Drop Somnia chain import. |
-| `src/persistence.ts` | REFACTOR | Generic JSON file store. Becomes one of several repositories. |
-| `src/strategy.ts` | REFACTOR | Keep `DeterministicStrategy`. Decouple from CLASH/Somnia naming. |
-| `src/risk.ts` | REFACTOR | Keep rule shape. Extend per spec (slippage, gas, balance, exposure). |
-| `src/policy.ts` | REFACTOR | Rename `ExecutionPolicy` → `SessionBudget`. Drop `AGENT_AUTONOMY_*` env names. |
-| `src/types.ts` | KEEP | Extend with memory, session, decision types. |
-| `src/clash.ts` | REMOVE | CLASH registration/activity not part of CEPID. |
-| `src/index.ts` | REPLACE | Rewrite as orchestrator + CLI. Current file mixes registration, execution, and output. |
-| `src/config.ts` | REPLACE | Strip `clashApiUrl`, agent identity, integration URL. Add network config. |
-| `package.json` | REPLACE | Drop `@somnia-chain/markets-sdk`. Add `serve` script for UI. |
-| `.env.example` | REPLACE | Drop CLASH/AGENT_AUTONOMY_*. Add CEPID network + session vars. |
-| `README.md` | REPLACE | Full CEPID README. |
-| `test/core.test.ts` | REPLACE | CEPID test suite, including the "memory changes decision" proof. |
+$ npx tsc --noEmit
+(clean)
 
-## Key decisions made in audit
+$ CEPID_NETWORK=mock npm run agent:preview
+{
+  "state": "DECISION_MADE",
+  "session": { ... "memoryIds": ["exp-..."] },
+  "intent": { "direction": "YES", "baseConfidence": 0.6, ... },
+  "decision": { "memoryInfluence": 0, "finalConfidence": 0.6, ... }
+}
+```
 
-- **No Somnia / no DreamDEX.** The existing SDK is coupled to a market format and a registration layer that don't fit CEPID. Replace with a viem-only Base Sepolia path plus a deterministic mock market provider for V1.
-- **No paid LLM dependency.** Architecture leaves room (`DeterministicExperienceExtractor` / `LLMExperienceExtractor`, `DeterministicDecisionEngine` / `LLMDecisionEngine`) but the running system is fully deterministic.
-- **JSON file persistence for V1.** A single SQLite database would be premature; the spec's "real, persistent, testable, visible" bar is met by a clear repository interface backed by a JSON file under `data/`.
-- **No framework UI.** Vanilla HTML/CSS/JS dashboard served by a tiny Node static server. Cleaner typography, no build step, no React-on-crypto slop.
+## What's done
 
-## Open questions deferred to execution
+- All CLASH / Somnia / marketplace / competition / arena code removed.
+- New architecture laid out under `src/`: config, market (3 providers), memory (8 modules), decision, strategy, risk, sessions, persistence, app orchestrator, CLI.
+- Memory core: importance scoring, similarity, repository, retrieval, patterns, scars, decay, evaluator.
+- Decision engine: base strategy + memory influence + strong-scar penalty → final decision.
+- Risk engine: per-order, per-session, market validity, price bounds.
+- Limitless Exchange on Base mainnet (real EIP-712 + REST integration).
+- Self-hosted Base Sepolia test market contract (`contracts/CepidTestMarket.sol`).
+- Mock provider for tests.
+- Sessions persist across process restarts.
+- All 15 tests pass, including:
+  - `memory changes the decision (the central product thesis)` — the same market produces YES without memory and NO_TRADE with memory.
+  - `end-to-end: session 2 retrieves session 1 memory and changes decision` — proves memory survives a complete process restart.
+  - patterns, scars, persistence, decay, similarity, importance, risk.
 
-- Real Base testnet market source. For V1 the mock provider is honest and labelled. A live integration comes through the same `MarketProvider` interface.
-- Wallet session-key / smart-account evolution. The `Wallet` interface is shaped to accept these later; V1 ships a local viem signer with a private key from env.
+## What is NOT done (deferred phases)
 
-## Next phase
+- **Next.js frontend** (Phase 8/9) — the spec §17-§25 UI requirements. The backend is API-shaped; the frontend is a separate phase. Design system to follow `/home/user_uy_scutty/skills/ui-design/SKILL.md`.
+- **Real Base Sepolia integration test** (Phase 11) — requires deploying `CepidTestMarket.sol` and funding it. The code path is complete and the provider compiles; only the on-chain deploy + run is missing.
+- **Demo polish** (Phase 12) — scripted two-session reproduction as a single command. The test does this programmatically; a `npm run demo` wrapper is a small addition.
 
-PHASE 2 — Clean restructure. Remove legacy code, build the new module tree per the audit table.
+## Next concrete steps
+
+1. **Frontend.** Set up Next.js (App Router) in a sibling directory, consume the orchestrator's output, design per the UI skill.
+2. **Base Sepolia integration test.** Deploy the test market contract, set `CEPID_TEST_MARKET_ADDRESS`, run a real preview.
+3. **Demo script.** Wrap the two-session reproduction in a single `npm run demo` that runs deterministically.
+
+## Decisions worth knowing
+
+See `memory.md` for the full set. Highlights:
+
+- One MarketProvider interface, three implementations (Limitless / Base Sepolia test / mock). Agent does not know which it talks to.
+- JSON file persistence for V1. Repository interface allows a future SQLite layer.
+- No LLM dependency. Architecture leaves seams but V1 is fully deterministic.
+- Scars decay at 25% of ordinary rate; never deleted (audit trail).
+- Risk engine is never bypassed by memory.
+
+## How to run
+
+```bash
+# Install
+npm install
+
+# Tests
+npm test
+
+# Preview a single decision (no transactions)
+CEPID_NETWORK=mock npm run agent:preview
+
+# Execute (requires explicit flags)
+CEPID_NETWORK=mock npm run agent:execute -- --confirm-approval --confirm-order
+
+# For Base Sepolia (after deploying contracts/CepidTestMarket.sol):
+CEPID_NETWORK=base-sepolia npm run agent:preview
+```
+
+## Repo structure
+
+```
+.
+├── README.md            # Quick start + architecture
+├── prd.md               # Product requirements
+├── project-plan.md      # Phases and progress
+├── handoff.md           # This file
+├── memory.md            # Engineering decisions worth remembering
+├── package.json
+├── tsconfig.json
+├── .env.example
+├── .gitignore
+├── contracts/
+│   ├── CepidTestMarket.sol
+│   └── README.md
+├── src/
+│   ├── app.ts                    # Orchestrator
+│   ├── cli/run-session.ts        # CLI
+│   ├── config/{load,types}.ts
+│   ├── market/{provider,limitless-provider,limitless-orders,base-sepolia-test-provider,mock-provider,index}.ts
+│   ├── memory/{importance,similarity,repository,retriever,linker,scars,decay,evaluator}.ts
+│   ├── decision/engine.ts
+│   ├── strategy/{base-strategy,context}.ts
+│   ├── risk/engine.ts
+│   └── sessions/repository.ts
+└── test/
+    ├── memory-core.test.ts
+    ├── memory-influence.test.ts    # THE thesis test
+    ├── risk.test.ts
+    └── session-restart.test.ts
+```

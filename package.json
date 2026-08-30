@@ -1,20 +1,24 @@
 {
-  "name": "clash-test-agent",
+  "name": "cepid",
+  "version": "0.1.0",
   "private": true,
+  "description": "Continuity Experience & Persistent Institutional Decision-memory — a trading agent with experiential memory.",
   "type": "module",
   "scripts": {
-    "start": "node --env-file=.env --import tsx src/index.ts",
-    "preview": "node --env-file=.env --import tsx src/index.ts",
-    "autonomous": "node --env-file=.env --import tsx src/index.ts --execute --confirm-approval --confirm-order",
-    "test": "node --test --import tsx test/**/*.test.ts"
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test --import tsx \"test/**/*.test.ts\"",
+    "demo:session1": "tsx src/cli/run-session.ts --session=1",
+    "demo:session2": "tsx src/cli/run-session.ts --session=2",
+    "agent:preview": "tsx src/cli/run-session.ts --preview",
+    "agent:execute": "tsx src/cli/run-session.ts --execute --confirm-approval --confirm-order"
   },
   "dependencies": {
-    "@somnia-chain/markets-sdk": "^0.28.1",
-    "tsx": "^4.23.12",
     "viem": "^2.55.19"
   },
   "devDependencies": {
-    "@types/node": "^26.3.0",
-    "typescript": "^7.0.2"
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
   }
 }

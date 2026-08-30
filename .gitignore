@@ -1,4 +1,10 @@
-.env
-node_modules
-dist
+node_modules/
+.next/
+out/
+dist/
 data/
+.env
+.env.local
+.DS_Store
+*.log
+.tsbuildinfo
