@@ -38,7 +38,7 @@ export function Header() {
       <div className="app__header-inner">
         <Link href="/" className="brand" aria-label="CEPID home">
           <span className="brand__mark">CEPID</span>
-          <span className="brand__tag">trading agent · v0.1</span>
+          <span className="brand__tag">a trading agent that remembers</span>
         </Link>
 
         <nav className="nav" aria-label="Primary">
@@ -59,7 +59,7 @@ export function Header() {
 
         <div className="app__status" aria-label="Agent status">
           <span className="status-dot" data-state={snapshot ? 'active' : 'warning'} />
-          <span>{network}</span>
+          <span className="chip chip--accent">{network}</span>
           <span aria-hidden="true">·</span>
           <span title={wallet ?? 'no wallet'}>{formatAddress(wallet)}</span>
         </div>
