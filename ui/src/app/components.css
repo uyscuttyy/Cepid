@@ -1,0 +1,1487 @@
+/* =============================================================================
+   CEPID — components
+   -----------------------------------------------------------------------------
+   Signature components first (agent state, decision, memory retrieval, memory
+   flow, trade experience), then the shared vocabulary (panels, meters, chips,
+   buttons, rows, states).
+   ============================================================================= */
+
+/* =============================================================================
+   AGENT STATE
+   -----------------------------------------------------------------------------
+   The agent's state is derived from what the agent actually recorded. It never
+   animates a process the backend is not performing: the only motion is a slow
+   breathing halo on states that are genuinely live, and it is subtle.
+   ============================================================================= */
+
+.agent-state {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.agent-state__dot {
+  position: relative;
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--text-3);
+}
+
+.agent-state__dot::after {
+  content: '';
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0;
+}
+
+.agent-state__label {
+  font-size: var(--fs-label);
+  font-weight: 500;
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+
+/* Live states — sky blue, with a slow halo. */
+.agent-state[data-tone='live'] .agent-state__dot {
+  background: var(--blue);
+  color: var(--blue);
+  box-shadow: 0 0 12px var(--blue-40);
+}
+.agent-state[data-tone='live'] .agent-state__dot::after {
+  animation: halo 3.2s ease-in-out infinite;
+}
+.agent-state[data-tone='live'] .agent-state__label {
+  color: var(--blue-bright);
+}
+
+/* Settled states — warm neutral, no motion. */
+.agent-state[data-tone='settled'] .agent-state__dot {
+  background: var(--pos);
+  box-shadow: 0 0 10px var(--pos-20);
+}
+.agent-state[data-tone='settled'] .agent-state__label {
+  color: var(--text-2);
+}
+
+/* Held / vetoed states. */
+.agent-state[data-tone='held'] .agent-state__dot {
+  background: var(--warn);
+}
+.agent-state[data-tone='held'] .agent-state__label {
+  color: var(--text-2);
+}
+
+/* Failed. */
+.agent-state[data-tone='fault'] .agent-state__dot {
+  background: var(--neg);
+}
+.agent-state[data-tone='fault'] .agent-state__label {
+  color: var(--neg);
+}
+
+/* Idle / offline — deliberately inert. */
+.agent-state[data-tone='idle'] .agent-state__dot {
+  background: var(--text-3);
+}
+
+@keyframes halo {
+  0%,
+  100% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  45% {
+    opacity: 0.16;
+    transform: scale(1);
+  }
+}
+
+/* =============================================================================
+   HERO — the overview opening
+   ============================================================================= */
+
+.hero {
+  position: relative;
+  padding: var(--s-8) 0 var(--s-7);
+}
+
+.hero__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-3) var(--s-5);
+  margin-bottom: var(--s-6);
+}
+
+.hero__divider {
+  width: 1px;
+  height: 12px;
+  background: var(--line-2);
+}
+
+.hero__title {
+  font-size: var(--fs-display);
+  font-weight: 500;
+  letter-spacing: var(--track-display);
+  line-height: var(--lh-tight);
+  color: var(--text);
+  margin-bottom: var(--s-4);
+}
+
+.hero__lede {
+  font-size: 1.0625rem;
+  line-height: 1.55;
+  color: var(--text-2);
+  max-width: 56ch;
+}
+
+.hero__lede strong {
+  font-weight: 500;
+  color: var(--text);
+}
+
+/* =============================================================================
+   CURRENT DECISION
+   -----------------------------------------------------------------------------
+   The single most prominent element in the product. The direction is set at
+   display scale; confidence sits beside it as a measured numeric; the memory
+   count is a link into the retrieval that produced it.
+   ============================================================================= */
+
+.decision {
+  position: relative;
+  border-radius: var(--r-4);
+  border: 1px solid var(--line);
+  background:
+    radial-gradient(
+      620px 320px at 8% -30%,
+      var(--blue-08),
+      transparent 70%
+    ),
+    var(--surface-2);
+  padding: var(--s-6);
+  overflow: hidden;
+}
+
+/* Faint grid, only inside the decision surface. */
+.decision::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, var(--line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--line) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(
+    500px 280px at 12% 0%,
+    rgba(0, 0, 0, 0.5),
+    transparent 72%
+  );
+  opacity: 0.5;
+}
+
+.decision__inner {
+  position: relative;
+}
+
+.decision__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3) var(--s-5);
+  margin-bottom: var(--s-5);
+}
+
+.decision__market {
+  font-family: var(--font-mono);
+  font-size: var(--fs-small);
+  color: var(--text-2);
+}
+
+.decision__body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--s-6) var(--s-8);
+}
+
+.decision__call {
+  display: grid;
+  gap: var(--s-2);
+}
+
+.decision__direction {
+  font-size: var(--fs-hero);
+  font-weight: 500;
+  letter-spacing: -0.045em;
+  line-height: 0.92;
+  color: var(--text);
+}
+
+.decision__direction[data-direction='YES'] {
+  color: var(--pos);
+}
+.decision__direction[data-direction='NO'] {
+  color: var(--neg);
+}
+.decision__direction[data-direction='NO_TRADE'] {
+  color: var(--text-2);
+  font-size: var(--fs-display);
+  letter-spacing: var(--track-display);
+}
+
+.decision__confidence {
+  display: grid;
+  gap: var(--s-1);
+  padding-bottom: var(--s-2);
+}
+
+.decision__confidence-value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--blue);
+}
+
+.decision__foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-3) var(--s-6);
+  align-items: center;
+  margin-top: var(--s-6);
+  padding-top: var(--s-5);
+  border-top: 1px solid var(--line);
+}
+
+.decision__fact {
+  display: grid;
+  gap: 2px;
+}
+
+.decision__fact-value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-body);
+  color: var(--text);
+}
+
+/* =============================================================================
+   MEMORY RETRIEVAL
+   -----------------------------------------------------------------------------
+   The signature component. Retrieved experiences are rendered as nodes on a
+   vertical trail descending from the current conditions. A node's horizontal
+   offset encodes similarity (closer to the spine = more similar), the outcome
+   is carried by both a label and a shape, and the connector brightens with
+   similarity. Expanding a node reveals the experience beneath it.
+   ============================================================================= */
+
+.retrieval {
+  position: relative;
+  border-radius: var(--r-3);
+  background: radial-gradient(
+      560px 320px at 4% 0%,
+      var(--blue-08),
+      transparent 66%
+    );
+  padding: var(--s-2) 0 var(--s-2) 0;
+}
+
+.retrieval__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s-2) var(--s-4);
+  margin-bottom: var(--s-5);
+}
+
+.retrieval__count {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 1.375rem;
+  color: var(--text);
+}
+
+.retrieval__list {
+  position: relative;
+  display: grid;
+  gap: var(--s-1);
+  padding-left: var(--s-6);
+}
+
+/* The spine: the trail memories hang from. */
+.retrieval__list::before {
+  content: '';
+  position: absolute;
+  left: 11px;
+  top: 6px;
+  bottom: 18px;
+  width: 1px;
+  background: linear-gradient(
+    to bottom,
+    var(--blue-40),
+    var(--blue-24) 40%,
+    var(--line) 100%
+  );
+}
+
+.memory-node {
+  position: relative;
+  border-radius: var(--r-2);
+  transition: background var(--t-fast);
+}
+
+.memory-node:hover {
+  background: var(--surface-2);
+}
+
+.memory-node[open] {
+  background: var(--surface-2);
+}
+
+/* Node marker on the spine. */
+.memory-node::before {
+  content: '';
+  position: absolute;
+  left: calc(var(--s-6) * -1 + 8px);
+  top: 20px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--bg);
+  border: 1px solid var(--blue-40);
+  z-index: 1;
+  transition: background var(--t-fast), border-color var(--t-fast),
+    box-shadow var(--t-fast);
+}
+
+.memory-node[data-strong='true']::before {
+  background: var(--blue);
+  border-color: var(--blue);
+  box-shadow: 0 0 10px var(--blue-40);
+}
+
+.memory-node[open]::before {
+  background: var(--blue-bright);
+  border-color: var(--blue-bright);
+  box-shadow: 0 0 12px var(--blue-40);
+}
+
+/* Connector from the spine to the node body. */
+.memory-node::after {
+  content: '';
+  position: absolute;
+  left: calc(var(--s-6) * -1 + 15px);
+  top: 23px;
+  width: calc(var(--s-6) - 15px);
+  height: 1px;
+  background: var(--line-2);
+}
+
+.memory-node[data-strong='true']::after {
+  background: var(--blue-24);
+}
+
+.memory-node__summary {
+  display: grid;
+  grid-template-columns: 4.5rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--s-4);
+  padding: var(--s-3) var(--s-3);
+  cursor: pointer;
+  list-style: none;
+}
+
+.memory-node__summary::-webkit-details-marker {
+  display: none;
+}
+
+.memory-node__sim {
+  display: grid;
+  gap: 3px;
+}
+
+.memory-node__sim-value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-body);
+  color: var(--text);
+  line-height: 1;
+}
+
+/* Similarity as a two-pixel bar under the number — readable without color. */
+.memory-node__sim-bar {
+  height: 2px;
+  border-radius: 1px;
+  background: var(--line-2);
+  overflow: hidden;
+}
+
+.memory-node__sim-bar span {
+  display: block;
+  height: 100%;
+  background: var(--blue);
+  border-radius: 1px;
+}
+
+.memory-node__body {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.memory-node__line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  min-width: 0;
+}
+
+.memory-node__market {
+  font-size: var(--fs-small);
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.memory-node__lesson {
+  font-size: var(--fs-small);
+  color: var(--text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.memory-node__aside {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.memory-node__toggle {
+  font-family: var(--font-mono);
+  font-size: var(--fs-small);
+  color: var(--text-3);
+  transition: color var(--t-fast);
+}
+
+.memory-node__summary:hover .memory-node__toggle {
+  color: var(--blue);
+}
+
+.memory-node[open] .memory-node__toggle {
+  color: var(--blue);
+}
+
+.memory-node__detail {
+  padding: 0 var(--s-3) var(--s-4) calc(4.5rem + var(--s-4) + var(--s-3));
+  animation: node-open var(--t-med) both;
+}
+
+@keyframes node-open {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (max-width: 700px) {
+  .memory-node__summary {
+    grid-template-columns: 4rem minmax(0, 1fr);
+    row-gap: var(--s-2);
+  }
+  .memory-node__aside {
+    grid-column: 1 / -1;
+    padding-left: 0;
+  }
+  .memory-node__detail {
+    padding-left: var(--s-3);
+  }
+  .memory-node__lesson {
+    white-space: normal;
+  }
+}
+
+/* =============================================================================
+   MEMORY -> DECISION FLOW
+   -----------------------------------------------------------------------------
+   The product's core loop, rendered as connected stages. Each stage shows a
+   real value from the recorded decision. Stages with no data say so.
+   ============================================================================= */
+
+.flow {
+  display: grid;
+  gap: 0;
+}
+
+.flow__stage {
+  position: relative;
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  gap: var(--s-4);
+  padding-bottom: var(--s-5);
+}
+
+.flow__stage:last-child {
+  padding-bottom: 0;
+}
+
+/* Vertical connector between stages. */
+.flow__stage:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 18px;
+  bottom: -2px;
+  width: 1px;
+  background: linear-gradient(to bottom, var(--blue-24), var(--line));
+}
+
+.flow__marker {
+  position: relative;
+  width: 11px;
+  height: 11px;
+  margin-top: 6px;
+  border-radius: 50%;
+  border: 1px solid var(--blue-40);
+  background: var(--bg);
+}
+
+.flow__stage[data-emphasis='true'] .flow__marker {
+  background: var(--blue);
+  border-color: var(--blue);
+  box-shadow: 0 0 12px var(--blue-40);
+}
+
+.flow__stage[data-empty='true'] .flow__marker {
+  border-color: var(--line-strong);
+}
+
+.flow__content {
+  min-width: 0;
+  display: grid;
+  gap: var(--s-2);
+}
+
+.flow__label {
+  font-size: var(--fs-label);
+  font-weight: 500;
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.flow__stage[data-emphasis='true'] .flow__label {
+  color: var(--blue);
+}
+
+.flow__value {
+  font-size: var(--fs-body);
+  color: var(--text);
+}
+
+.flow__value .mono {
+  color: var(--text);
+}
+
+.flow__note {
+  font-size: var(--fs-small);
+  color: var(--text-3);
+}
+
+.flow__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+/* =============================================================================
+   CONDITIONS
+   -----------------------------------------------------------------------------
+   The market conditions surrounding a decision. A dense, aligned key/value
+   ladder — no cards, tabular numerics, stable widths.
+   ============================================================================= */
+
+.conditions {
+  display: grid;
+  gap: 0;
+}
+
+.conditions__row {
+  display: grid;
+  grid-template-columns: minmax(7rem, 10rem) minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: var(--s-4);
+  padding: var(--s-3) 0;
+  border-top: 1px solid var(--line);
+}
+
+.conditions__row:first-child {
+  border-top: 0;
+}
+
+.conditions__key {
+  font-size: var(--fs-label);
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.conditions__value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-small);
+  color: var(--text);
+}
+
+.conditions__scale {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+}
+
+.conditions__tick {
+  width: 14px;
+  height: 3px;
+  border-radius: 1px;
+  background: var(--line-2);
+}
+
+.conditions__tick[data-on='true'] {
+  background: var(--blue);
+}
+
+@media (max-width: 560px) {
+  .conditions__row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .conditions__scale {
+    grid-column: 1 / -1;
+  }
+}
+
+/* =============================================================================
+   PANELS
+   -----------------------------------------------------------------------------
+   Used only where content is genuinely a framed object: an elevated detail, a
+   selectable item, a bordered aside. Page structure uses bands instead.
+   ============================================================================= */
+
+.panel {
+  border: 1px solid var(--line);
+  border-radius: var(--r-3);
+  background: var(--surface-2);
+  padding: var(--s-5);
+}
+
+.panel--thin {
+  background: var(--surface-thin);
+}
+
+.panel--blue {
+  border-color: var(--blue-24);
+  background: linear-gradient(
+      180deg,
+      var(--blue-08),
+      transparent 55%
+    ),
+    var(--surface-2);
+}
+
+.panel__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+  margin-bottom: var(--s-4);
+}
+
+.panel__title {
+  font-size: var(--fs-label);
+  font-weight: 500;
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+
+/* =============================================================================
+   METRICS
+   -----------------------------------------------------------------------------
+   Big-number readouts. Laid out on a shared baseline grid, separated by rules
+   rather than boxes.
+   ============================================================================= */
+
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+  gap: 0;
+  border-top: 1px solid var(--line);
+}
+
+.metric {
+  display: grid;
+  gap: var(--s-2);
+  padding: var(--s-5) var(--s-5) var(--s-5) 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.metric + .metric {
+  padding-left: var(--s-5);
+  border-left: 1px solid var(--line);
+}
+
+.metric__value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 1.75rem;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.metric__value[data-tone='pos'] {
+  color: var(--pos);
+}
+.metric__value[data-tone='neg'] {
+  color: var(--neg);
+}
+.metric__value[data-tone='blue'] {
+  color: var(--blue);
+}
+.metric__value[data-tone='muted'] {
+  color: var(--text-3);
+}
+
+.metric__sub {
+  font-size: var(--fs-small);
+  color: var(--text-3);
+}
+
+@media (max-width: 700px) {
+  .metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .metric,
+  .metric + .metric {
+    padding: var(--s-4) var(--s-4) var(--s-4) 0;
+  }
+  .metric:nth-child(odd) {
+    border-left: 0;
+    padding-left: 0;
+  }
+  .metric:nth-child(even) {
+    border-left: 1px solid var(--line);
+    padding-left: var(--s-4);
+  }
+}
+
+/* =============================================================================
+   METER — a labelled proportional bar
+   ============================================================================= */
+
+.meter {
+  display: grid;
+  gap: var(--s-2);
+}
+
+.meter__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+
+.meter__value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-small);
+  color: var(--text);
+}
+
+.meter__track {
+  position: relative;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--surface-3);
+  overflow: hidden;
+}
+
+.meter__fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 2px;
+  background: var(--blue);
+  transition: width var(--t-slow), left var(--t-slow);
+}
+
+.meter__fill[data-tone='pos'] {
+  background: var(--pos);
+}
+.meter__fill[data-tone='neg'] {
+  background: var(--neg);
+}
+.meter__fill[data-tone='muted'] {
+  background: var(--text-3);
+}
+
+/* Signed meter: a centre origin with fills growing either way. */
+.meter__origin {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  left: 50%;
+  width: 1px;
+  background: var(--line-strong);
+}
+
+/* =============================================================================
+   CHIPS & TAGS
+   ============================================================================= */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: 4px 10px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--line-2);
+  background: var(--surface-2);
+  font-size: var(--fs-label);
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+
+.chip--blue {
+  border-color: var(--blue-24);
+  background: var(--blue-08);
+  color: var(--blue-bright);
+}
+.chip--pos {
+  border-color: var(--pos-20);
+  background: var(--pos-08);
+  color: var(--pos);
+}
+.chip--neg {
+  border-color: var(--neg-20);
+  background: var(--neg-08);
+  color: var(--neg);
+}
+.chip--warn {
+  border-color: var(--warn-20);
+  background: var(--warn-08);
+  color: var(--warn);
+}
+.chip--quiet {
+  background: transparent;
+  color: var(--text-3);
+}
+
+.chip--mono {
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
+/* Outcome marker: shape + text, so the state survives without color. */
+.outcome {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--fs-label);
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.outcome::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+  background: currentColor;
+}
+
+.outcome[data-kind='win'] {
+  color: var(--pos);
+}
+/* A win is a filled square; a loss is a hollow diamond; pending is a ring. */
+.outcome[data-kind='win']::before {
+  border-radius: 1px;
+}
+
+.outcome[data-kind='loss'] {
+  color: var(--neg);
+}
+.outcome[data-kind='loss']::before {
+  background: transparent;
+  border: 1px solid currentColor;
+  transform: rotate(45deg);
+}
+
+.outcome[data-kind='pending'] {
+  color: var(--text-3);
+}
+.outcome[data-kind='pending']::before {
+  background: transparent;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+}
+
+/* =============================================================================
+   BUTTONS
+   ============================================================================= */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  padding: 11px 22px;
+  border-radius: var(--r-pill);
+  border: 1px solid transparent;
+  font-size: var(--fs-small);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  transition: background var(--t-fast), border-color var(--t-fast),
+    color var(--t-fast), transform var(--t-fast), box-shadow var(--t-fast);
+}
+
+.btn:active {
+  transform: translateY(1px);
+}
+
+.btn--primary {
+  background: var(--blue);
+  color: var(--blue-ink);
+  font-weight: 600;
+}
+
+.btn--primary:hover {
+  background: var(--blue-bright);
+  box-shadow: 0 6px 24px -10px var(--blue-40);
+}
+
+.btn--secondary {
+  background: var(--surface-2);
+  border-color: var(--line-2);
+  color: var(--text);
+}
+
+.btn--secondary:hover {
+  background: var(--surface-3);
+  border-color: var(--line-strong);
+}
+
+.btn--ghost {
+  padding: 8px 4px;
+  color: var(--text-2);
+}
+
+.btn--ghost:hover {
+  color: var(--blue);
+}
+
+.btn--sm {
+  padding: 7px 16px;
+  font-size: var(--fs-label);
+  letter-spacing: 0.06em;
+}
+
+/* =============================================================================
+   ROWS — scan-level lists
+   -----------------------------------------------------------------------------
+   Rules, not cards. A hover state and a left accent on interactive rows.
+   ============================================================================= */
+
+.rows {
+  display: grid;
+  border-top: 1px solid var(--line);
+}
+
+.row {
+  position: relative;
+  display: grid;
+  align-items: center;
+  gap: var(--s-4);
+  padding: var(--s-4) var(--s-3);
+  border-bottom: 1px solid var(--line);
+  min-width: 0;
+}
+
+.row--link {
+  transition: background var(--t-fast);
+}
+
+.row--link::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 10%;
+  bottom: 10%;
+  width: 2px;
+  background: var(--blue);
+  opacity: 0;
+  transition: opacity var(--t-fast);
+}
+
+.row--link:hover {
+  background: var(--surface-2);
+}
+
+.row--link:hover::before {
+  opacity: 1;
+}
+
+.row__lead {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-small);
+  color: var(--text-3);
+  white-space: nowrap;
+}
+
+.row__main {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.row__title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--fs-small);
+  color: var(--text);
+  min-width: 0;
+}
+
+.row__sub {
+  font-size: var(--fs-small);
+  color: var(--text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.row__trail {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  justify-content: flex-end;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-small);
+  color: var(--text-2);
+  white-space: nowrap;
+}
+
+/* Column templates, declared per list so each list controls its own rhythm. */
+.rows--trades .row {
+  grid-template-columns: 5.5rem minmax(0, 1fr) auto;
+}
+.rows--memories .row {
+  grid-template-columns: 4.5rem minmax(0, 1fr) auto;
+}
+.rows--events .row {
+  grid-template-columns: 5.5rem minmax(0, 1fr) auto;
+}
+
+@media (max-width: 700px) {
+  .rows--trades .row,
+  .rows--memories .row,
+  .rows--events .row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: var(--s-2);
+  }
+  .row__lead {
+    grid-column: 1 / -1;
+  }
+  .row__trail {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+}
+
+/* =============================================================================
+   ACTIVITY — the event trail
+   ============================================================================= */
+
+.activity {
+  position: relative;
+  display: grid;
+  gap: 0;
+  padding-left: var(--s-5);
+}
+
+.activity::before {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 10px;
+  bottom: 10px;
+  width: 1px;
+  background: var(--line);
+}
+
+.activity__item {
+  position: relative;
+  display: grid;
+  grid-template-columns: 5.5rem minmax(0, 1fr);
+  gap: var(--s-4);
+  align-items: baseline;
+  padding: var(--s-3) 0;
+}
+
+.activity__item::before {
+  content: '';
+  position: absolute;
+  left: calc(var(--s-5) * -1 + 1px);
+  top: 21px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--line-strong);
+}
+
+/* Only the newest event is treated as live. */
+.activity__item[data-latest='true']::before {
+  background: var(--blue);
+  box-shadow: 0 0 10px var(--blue-40);
+}
+
+.activity__time {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-label);
+  color: var(--text-3);
+}
+
+.activity__body {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.activity__what {
+  font-size: var(--fs-small);
+  color: var(--text);
+}
+
+.activity__item[data-latest='true'] .activity__what {
+  color: var(--blue-bright);
+}
+
+.activity__detail {
+  font-family: var(--font-mono);
+  font-size: var(--fs-label);
+  color: var(--text-3);
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 560px) {
+  .activity__item {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: var(--s-1);
+  }
+}
+
+/* =============================================================================
+   PNL TRAIL — restrained cumulative chart
+   ============================================================================= */
+
+.trail {
+  display: grid;
+  gap: var(--s-3);
+}
+
+.trail__chart {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.trail__zero {
+  stroke: var(--line-2);
+  stroke-width: 1;
+  stroke-dasharray: 2 4;
+}
+
+.trail__line {
+  fill: none;
+  stroke: var(--blue);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.trail__area {
+  fill: url(#trail-fill);
+}
+
+.trail__point {
+  fill: var(--bg);
+  stroke-width: 1.25;
+}
+
+.trail__point[data-kind='win'] {
+  stroke: var(--pos);
+}
+.trail__point[data-kind='loss'] {
+  stroke: var(--neg);
+}
+.trail__point[data-kind='pending'] {
+  stroke: var(--text-3);
+}
+
+.trail__axis {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: var(--fs-label);
+  color: var(--text-3);
+}
+
+/* =============================================================================
+   STATES — empty, loading, error, notice
+   ============================================================================= */
+
+.state {
+  display: grid;
+  gap: var(--s-3);
+  justify-items: start;
+  padding: var(--s-7) var(--s-6);
+  border: 1px solid var(--line);
+  border-radius: var(--r-3);
+  background: var(--surface);
+}
+
+.state__title {
+  font-size: var(--fs-label);
+  font-weight: 500;
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.state__body {
+  color: var(--text-2);
+  max-width: 52ch;
+  font-size: var(--fs-small);
+  line-height: 1.65;
+}
+
+.state__glyph {
+  color: var(--blue-40);
+}
+
+.state--error {
+  border-color: var(--neg-20);
+  background: linear-gradient(180deg, var(--neg-08), transparent 60%),
+    var(--surface);
+}
+
+.state--error .state__title {
+  color: var(--neg);
+}
+
+.state__tech {
+  font-family: var(--font-mono);
+  font-size: var(--fs-label);
+  color: var(--text-3);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--r-1);
+  padding: var(--s-2) var(--s-3);
+  overflow-wrap: anywhere;
+  max-width: 100%;
+}
+
+/* A notice band — environment/mode disclosure. Not an alert box. */
+.notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s-2) var(--s-4);
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-2);
+  border: 1px solid var(--line);
+  border-left: 2px solid var(--line-strong);
+  background: var(--surface);
+  font-size: var(--fs-small);
+  color: var(--text-2);
+}
+
+.notice__title {
+  font-size: var(--fs-label);
+  font-weight: 500;
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.notice--warn {
+  border-left-color: var(--warn);
+}
+.notice--warn .notice__title {
+  color: var(--warn);
+}
+.notice--blue {
+  border-left-color: var(--blue);
+}
+.notice--blue .notice__title {
+  color: var(--blue);
+}
+.notice--neg {
+  border-left-color: var(--neg);
+}
+.notice--neg .notice__title {
+  color: var(--neg);
+}
+
+/* ------------------------------------------------------------------ skeletons */
+.skeleton {
+  position: relative;
+  display: block;
+  border-radius: var(--r-1);
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(244, 238, 232, 0.045),
+    transparent
+  );
+  transform: translateX(-100%);
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.skeleton--line {
+  height: 0.75rem;
+}
+.skeleton--title {
+  height: 1.75rem;
+  max-width: 22ch;
+}
+.skeleton--block {
+  height: 5rem;
+}
+
+/* =============================================================================
+   MISC
+   ============================================================================= */
+
+.reasons {
+  display: grid;
+  gap: var(--s-3);
+}
+
+.reasons__item {
+  display: grid;
+  grid-template-columns: 1.25rem minmax(0, 1fr);
+  gap: var(--s-2);
+  font-size: var(--fs-small);
+  color: var(--text-2);
+  line-height: 1.6;
+}
+
+.reasons__index {
+  font-family: var(--font-mono);
+  font-size: var(--fs-label);
+  color: var(--text-3);
+  padding-top: 3px;
+}
+
+.kv {
+  display: grid;
+  gap: 0;
+}
+
+.kv__row {
+  display: grid;
+  grid-template-columns: minmax(8rem, auto) minmax(0, 1fr);
+  gap: var(--s-4);
+  align-items: baseline;
+  padding: var(--s-3) 0;
+  border-top: 1px solid var(--line);
+}
+
+.kv__row:first-child {
+  border-top: 0;
+}
+
+.kv__key {
+  font-size: var(--fs-label);
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.kv__val {
+  font-size: var(--fs-small);
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.kv__val--mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 560px) {
+  .kv__row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--s-1);
+  }
+}
+
+.inline-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2) var(--s-5);
+}
+
+.inline-fact {
+  display: grid;
+  gap: 2px;
+}
+
+.inline-fact__value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-small);
+  color: var(--text);
+}

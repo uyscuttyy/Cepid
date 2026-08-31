@@ -1,244 +1,274 @@
-import { Banner, EmptyState, Section, Stat } from '@/components/Primitives';
-import { DecisionHero } from '@/components/DecisionHero';
-import { getEvents, getExperiences } from '@/lib/data';
-import { formatPercent, formatPrice, formatRelative, formatUsdc } from '@/lib/format';
 import Link from 'next/link';
+import {
+  Band,
+  EmptyState,
+  InlineFact,
+  KV,
+  KVRow,
+  Meter,
+  Notice,
+  PageHead,
+  Panel,
+  Reasons,
+} from '@/components/Primitives';
+import { CurrentDecision, NoDecisionYet } from '@/components/CurrentDecision';
+import { MemoryFlow } from '@/components/MemoryFlow';
+import { MemoryRetrieval } from '@/components/MemoryRetrieval';
+import { Conditions } from '@/components/Experience';
+import { getEvents, getExperiences } from '@/lib/data';
+import { deriveAgentState, deriveLatestDecision } from '@/lib/view';
+import {
+  DASH,
+  directionLabel,
+  formatDateTime,
+  formatPctSigned,
+  formatPercent,
+  formatPrice,
+  formatRelative,
+  formatTimeRemaining,
+  formatUsdc,
+  marketOf,
+} from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
+export const metadata = { title: 'Decision' };
+
+/**
+ * DECISION — "why did you make this decision?"
+ *
+ * The full reasoning chain for the most recent recorded decision: the call, the
+ * loop that produced it, the experiences retrieved, how much they moved the
+ * confidence, and the agent's own decision log verbatim.
+ *
+ * The influence figures shown are the ones the decision engine recorded
+ * (`baseConfidence`, `memoryInfluence`, `finalConfidence`). No influence score
+ * is invented for stages the engine does not quantify.
+ */
 export default async function DecisionPage() {
   const [events, experiences] = await Promise.all([getEvents(), getExperiences()]);
+  const state = deriveAgentState(events);
+  const decision = deriveLatestDecision(events, experiences);
 
-  // A "decision" is captured in a preview event. The most recent one is the current
-  // decision the agent is reasoning about.
-  const previews = events
-    .filter((e) => e.type === 'preview')
-    .sort((a, b) => String(b.at).localeCompare(String(a.at)));
-  const last = previews[0] as (Record<string, unknown> & { at: string }) | undefined;
-
-  if (!last) {
+  if (!decision) {
     return (
       <div className="page">
-        <header className="page__header">
-          <span className="page__eyebrow">Decision</span>
-          <h1 className="page__title">No decision has been made</h1>
-          <p className="page__sub">
-            Run the agent in preview or execute mode and the latest decision will appear
-            here, with the full reasoning chain.
-          </p>
-        </header>
-        <EmptyState
-          title="No decision yet"
-          body="Use `npm run agent:preview` to generate a decision. This page is the
-          most important view in CEPID — it shows exactly how memory changed (or did
-          not change) the agent's call."
+        <PageHead
+          eyebrow="Decision"
+          title="No decision has been recorded"
+          sub="This is the most important view in CEPID: it shows exactly how memory changed — or did not change — the agent's call."
         />
+        <NoDecisionYet />
       </div>
     );
   }
 
-  const market = last.market as Record<string, unknown>;
-  const intent = last.intent as Record<string, unknown>;
-  const decision = (last.decision as Record<string, unknown>) ?? {};
-  const risk = (last.risk as Record<string, unknown>) ?? {};
-  const retrieved = (last.retrieved as Array<{ experience: { id: string }; similarity: number; isScar: boolean; isPattern: boolean; retrievalScore: number }>) ?? [];
-  const direction = String(intent.direction ?? 'NO_TRADE');
-  const baseConfidence = Number(intent.baseConfidence ?? 0);
-  const memoryInfluence = Number(decision.memoryInfluence ?? 0);
-  const finalConfidence = Number(decision.finalConfidence ?? 0);
-  const memoryIds = (decision.memoryIds as string[]) ?? [];
-  const reasoning = (decision.reasoning as string[]) ?? [];
-  const collateralUsdc = Number(intent.shares ?? 0) * Number(intent.price ?? 0);
-  const riskApproved = Boolean(risk.approved);
-  const riskReasons = (risk.reasons as string[]) ?? [];
+  const d = decision.decision;
+  const m = decision.market;
+  const vetoed =
+    d.direction === 'NO_TRADE' &&
+    decision.base.direction !== null &&
+    decision.base.direction !== 'NO_TRADE';
+
+  const influence = d.memoryInfluence;
+  const collateral =
+    decision.base.shares !== null && decision.base.price !== null
+      ? decision.base.shares * decision.base.price
+      : decision.risk.collateral;
 
   return (
     <div className="page">
-      <header className="page__header">
-        <span className="page__eyebrow">Decision · {formatRelative(String(last.at))}</span>
-        <h1 className="page__title">Why did CEPID make this decision?</h1>
-        <p className="page__sub">
-          The current decision is the result of a base strategy, a memory retrieval,
-          and a structured reconciliation. Each input is shown below; nothing is
-          inferred.
-        </p>
-      </header>
-
-      {!riskApproved && (
-        <div style={{ marginBottom: 'var(--s-5)' }}>
-          <Banner kind="err" title="Risk rejected this decision">
-            {riskReasons.length > 0 ? (
-              <ul style={{ margin: 0, paddingLeft: '1.2em' }}>
-                {riskReasons.map((r, i) => <li key={i}>{r}</li>)}
-              </ul>
-            ) : (
-              'The risk engine refused this trade.'
-            )}
-          </Banner>
-        </div>
-      )}
-
-      <DecisionHero
-        direction={direction as 'YES' | 'NO' | 'NO_TRADE'}
-        baseConfidence={baseConfidence}
-        memoryInfluence={memoryInfluence}
-        finalConfidence={finalConfidence}
-        collateralUsdc={direction === 'NO_TRADE' ? null : collateralUsdc}
-        marketLabel={`${String(market.asset ?? '?')} · ${String(market.timeframe ?? '?')} · ${String(market.title ?? market.id ?? '')}`}
+      <PageHead
+        eyebrow="Decision"
+        aside={<span className="mono">{formatRelative(decision.at)}</span>}
+        title="Why CEPID made this decision"
+        sub="Every figure below was recorded by the decision engine at the moment of the call. Nothing is recomputed or estimated here."
       />
 
-      <div className="cols">
-        <Section title="Current conditions" hint="from the live market">
-          <Stat
-            label="YES price"
-            value={typeof market.yesPrice === 'number' ? formatPrice(market.yesPrice) : '—'}
-          />
-          <Stat
-            label="Expires"
-            value={
-              market.expiresAt
-                ? new Date(Number(market.expiresAt) * 1000).toLocaleString()
-                : '—'
-            }
-          />
-        </Section>
+      {decision.risk.approved === false && (
+        <div style={{ marginBottom: 'var(--s-6)' }}>
+          <Notice title="Risk refused" tone="neg">
+            {decision.risk.reasons.length > 0
+              ? decision.risk.reasons.join(' · ')
+              : 'The risk engine refused this order. Memory never bypasses risk.'}
+          </Notice>
+        </div>
+      )}
 
-        <Section title="Base strategy">
-          <Stat
-            label="Direction"
-            value={String(intent.direction ?? '—')}
-            sub={String(intent.reason ?? '')}
-          />
-          <Stat
-            label="Base confidence"
-            value={formatPercent(baseConfidence)}
-          />
-        </Section>
-      </div>
+      <Band tight>
+        <CurrentDecision decision={decision} state={state} href={null} />
+      </Band>
 
-      <Section
-        title="CEPID memory"
+      {/* ------------------------------------------------- the loop, in full */}
+      <Band title="The loop" hint="current conditions through to the memory it created">
+        <div className="split">
+          <MemoryFlow decision={decision} />
+
+          <div className="stack">
+            <Panel title="Conditions at decision time">
+              {decision.conditions ? (
+                <Conditions conditions={decision.conditions} />
+              ) : (
+                <p className="prose" style={{ fontSize: 'var(--fs-small)' }}>
+                  The market context was not recorded with this decision.
+                </p>
+              )}
+            </Panel>
+
+            <Panel title="Market">
+              <KV>
+                <KVRow k="Market" v={m.title ?? m.id ?? DASH} />
+                <KVRow k="Instrument" v={marketOf(m.asset, m.timeframe)} mono />
+                <KVRow k="YES price" v={formatPrice(m.yesPrice)} mono />
+                <KVRow
+                  k="Time left"
+                  v={formatTimeRemaining(m.expiresAt)}
+                  mono
+                />
+              </KV>
+            </Panel>
+          </div>
+        </div>
+      </Band>
+
+      {/* -------------------------------------------------------- retrieval */}
+      <Band
+        title="Memory retrieval"
         hint={
-          retrieved.length > 0
-            ? `${retrieved.length} similar ${retrieved.length === 1 ? 'memory' : 'memories'} found`
-            : 'no memories retrieved'
+          decision.retrieved.length > 0
+            ? 'expand a memory to see the lesson the agent recorded'
+            : undefined
         }
       >
-        {retrieved.length === 0 ? (
-          <EmptyState
-            title="No memories to retrieve"
-            body="This is the agent's first encounter with this kind of market, so no past experience was used."
-          />
-        ) : (
-          retrieved.map((r) => {
-            const exp = r.experience as unknown as { id: string; outcome: { outcome: string } };
-            const outcome = exp.outcome.outcome;
-            return (
-              <div key={exp.id} className="row row--clickable">
-                <span className="row__id">
-                  {(r.similarity * 100).toFixed(0)}%
-                </span>
-                <span className="row__title">
-                  <Link href={`/memory/${exp.id}`} style={{ textDecoration: 'underline' }}>
-                    {exp.id.slice(0, 8)}
-                  </Link>
-                  <span className="tag" data-kind={outcome === 'WIN' ? 'win' : outcome === 'LOSS' ? 'loss' : 'pending'} style={{ marginLeft: 'var(--s-2)' }}>
-                    {outcome}
-                  </span>
-                  {r.isScar && (
-                    <span className="tag" data-kind="scar" style={{ marginLeft: 'var(--s-2)' }}>
-                      scar
-                    </span>
-                  )}
-                  {r.isPattern && (
-                    <span className="tag" data-kind="pattern" style={{ marginLeft: 'var(--s-2)' }}>
-                      pattern
-                    </span>
-                  )}
-                </span>
-                <span className="row__meta">
-                  sim {(r.retrievalScore * 100).toFixed(0)}
-                </span>
-              </div>
-            );
-          })
-        )}
-      </Section>
+        <MemoryRetrieval retrieved={decision.retrieved} />
+      </Band>
 
-      <Section title="Memory influence" hint="how retrieval changed the decision">
-        <div className="influence-bar">
-          <span className="stat__label" style={{ minWidth: 96 }}>Influence</span>
-          <div className="influence-bar__track">
-            <div className="influence-bar__center" aria-hidden="true" />
-            <div
-              className="influence-bar__fill"
-              data-sign={memoryInfluence > 0.005 ? 'pos' : memoryInfluence < -0.005 ? 'neg' : 'neutral'}
-              style={{
-                left: memoryInfluence >= 0 ? '50%' : `${50 + memoryInfluence * 50}%`,
-                width: `${Math.min(50, Math.abs(memoryInfluence) * 50)}%`,
-              }}
+      {/* --------------------------------------------------------- influence */}
+      <Band title="How memory changed the call">
+        <div className="split">
+          <div className="stack stack--loose">
+            <Meter
+              label="Base confidence"
+              value={d.baseConfidence}
+              display={formatPercent(d.baseConfidence)}
+              tone="muted"
             />
+            <Meter
+              label="Memory influence"
+              value={influence}
+              display={influence === null ? DASH : formatPctSigned(influence)}
+              tone={influence !== null && influence < 0 ? 'neg' : 'pos'}
+              signed
+            />
+            <Meter
+              label="Final confidence"
+              value={d.finalConfidence}
+              display={formatPercent(d.finalConfidence)}
+            />
+
+            <p className="prose" style={{ fontSize: 'var(--fs-small)' }}>
+              {influence === null || Math.abs(influence) < 0.0005 ? (
+                <>
+                  Memory did not move this decision. The final confidence is the base
+                  strategy&rsquo;s own reading.
+                </>
+              ) : influence < 0 ? (
+                <>
+                  Retrieved experiences pulled confidence <strong>down</strong> by{' '}
+                  {formatPctSigned(Math.abs(influence))} — similar setups that ended badly
+                  count against the trade.
+                </>
+              ) : (
+                <>
+                  Retrieved experiences pushed confidence <strong>up</strong> by{' '}
+                  {formatPctSigned(influence)} — similar setups resolved in favour of this
+                  direction.
+                </>
+              )}
+            </p>
           </div>
-          <span className="stat__label" style={{ minWidth: 80, textAlign: 'right' }}>
-            {formatPercent(memoryInfluence, 0)}
-          </span>
+
+          <div className="stack">
+            <Panel title="Outcome of the reconciliation" tone="blue">
+              <KV>
+                <KVRow k="Base strategy" v={directionLabel(decision.base.direction)} mono />
+                <KVRow k="After memory" v={directionLabel(d.direction)} mono />
+                <KVRow
+                  k="Threshold"
+                  v="50% final confidence"
+                  mono
+                />
+                <KVRow
+                  k="Result"
+                  v={
+                    vetoed
+                      ? 'Memory veto — no order'
+                      : d.direction === 'NO_TRADE'
+                        ? 'No edge found — no order'
+                        : 'Trade allowed'
+                  }
+                />
+              </KV>
+            </Panel>
+
+            <div className="inline-facts">
+              <InlineFact
+                label="Memories cited"
+                value={d.memoryIds.length > 0 ? d.memoryIds.length : DASH}
+              />
+              <InlineFact
+                label="Collateral"
+                value={d.direction === 'NO_TRADE' ? DASH : formatUsdc(collateral)}
+              />
+              <InlineFact
+                label="Risk"
+                value={
+                  decision.risk.approved === null
+                    ? DASH
+                    : decision.risk.approved
+                      ? 'Approved'
+                      : 'Refused'
+                }
+              />
+            </div>
+          </div>
         </div>
+      </Band>
 
-        <Stat
-          label="Final confidence"
-          value={formatPercent(finalConfidence)}
-          sub={finalConfidence < 0.5 ? 'Below no-trade threshold — vetoed' : 'Above threshold — trade allowed'}
-        />
-        <Stat
-          label="Outcome"
-          value={finalConfidence < 0.5 ? 'NO TRADE' : direction}
-          trend={finalConfidence < 0.5 ? 'neutral' : direction === 'YES' ? 'up' : 'down'}
-        />
-      </Section>
-
-      {reasoning.length > 0 && (
-        <Section title="Reasoning" hint="decision log">
-          <ul className="reasoning">
-            {reasoning.map((r, i) => <li key={i}>{r}</li>)}
-          </ul>
-        </Section>
-      )}
-
-      <Section title="Risk check" hint="never bypassed by memory">
-        <Stat
-          label="Approved"
-          value={riskApproved ? 'YES' : 'NO'}
-          trend={riskApproved ? 'up' : 'down'}
-        />
-        <Stat
-          label="Collateral"
-          value={direction === 'NO_TRADE' ? '—' : formatUsdc(collateralUsdc)}
-        />
-        {riskReasons.length > 0 && (
-          <ul className="reasoning">
-            {riskReasons.map((r, i) => <li key={i}>{r}</li>)}
-          </ul>
+      {/* ------------------------------------------------------- reasoning log */}
+      <Band title="Decision log" hint="written by the engine, in order">
+        {d.reasoning.length > 0 ? (
+          <Reasons items={d.reasoning} />
+        ) : (
+          <EmptyState
+            title="No log recorded"
+            body="This decision was written without a reasoning trace."
+          />
         )}
-      </Section>
+      </Band>
 
-      {memoryIds.length > 0 && experiences.length > 0 && (
-        <Section title="Memory references" hint={`${memoryIds.length} IDs cited in this decision`}>
-          {memoryIds.map((id) => {
-            const exp = experiences.find((e) => e.id === id);
-            if (!exp) return null;
-            return (
-              <Link key={id} className="row row--clickable" href={`/memory/${id}`}>
-                <span className="row__id">{id.slice(0, 8)}</span>
-                <span className="row__title">
-                  {exp.asset} · {exp.timeframe} · {exp.decision.direction} · {exp.outcome.outcome}
-                </span>
-                <span className="row__meta">{formatUsdc(exp.outcome.pnl)}</span>
-              </Link>
-            );
-          })}
-        </Section>
-      )}
+      {/* ---------------------------------------------------------- provenance */}
+      <Band title="Provenance" tight>
+        <KV>
+          <KVRow k="Recorded at" v={formatDateTime(decision.at)} mono />
+          <KVRow k="Agent state" v={decision.state ?? DASH} mono />
+          <KVRow k="Base reason" v={decision.base.reason ?? DASH} />
+          <KVRow
+            k="Memory created"
+            v={
+              decision.experienceId ? (
+                <Link className="link" href={`/memory/${decision.experienceId}`}>
+                  {decision.experienceId}
+                </Link>
+              ) : (
+                'None — no experience was stored for this decision'
+              )
+            }
+            mono
+          />
+        </KV>
+      </Band>
     </div>
   );
 }

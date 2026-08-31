@@ -1,0 +1,427 @@
+/* =============================================================================
+   CEPID — application shell
+   -----------------------------------------------------------------------------
+   Desktop: a fixed identity rail on the left (brand, navigation, live agent
+   state). The rail is part of the product identity, not chrome — it is where
+   "the agent is running" is always visible.
+
+   Tablet / mobile: the rail becomes a compact sticky header with a scrollable
+   nav strip and a condensed status line. Reading order is preserved.
+   ============================================================================= */
+
+.shell {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: var(--rail) minmax(0, 1fr);
+}
+
+/* ------------------------------------------------------------------- the rail */
+.rail {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  height: 100vh;
+  height: 100dvh;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: var(--s-6);
+  padding: var(--s-6) var(--s-5) var(--s-5);
+  border-right: 1px solid var(--line);
+  background: linear-gradient(
+    180deg,
+    rgba(24, 19, 16, 0.82) 0%,
+    rgba(16, 13, 11, 0.62) 100%
+  );
+  backdrop-filter: blur(12px);
+  overflow-y: auto;
+}
+
+/* ----------------------------------------------------------------- brand mark */
+.brand {
+  display: grid;
+  gap: var(--s-2);
+}
+
+.brand__row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.brand__name {
+  font-size: 1.0625rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  color: var(--text);
+}
+
+.brand__tag {
+  font-size: var(--fs-small);
+  line-height: 1.45;
+  color: var(--text-3);
+  max-width: 20ch;
+}
+
+/* The glyph: three memory nodes on a descending trail. Small, quiet, ours. */
+.glyph {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  overflow: visible;
+}
+.glyph__trail {
+  fill: none;
+  stroke: var(--blue-40);
+  stroke-width: 1.25;
+  stroke-linecap: round;
+}
+.glyph__node {
+  fill: var(--blue);
+}
+.glyph__node--dim {
+  fill: var(--blue-40);
+}
+
+/* ----------------------------------------------------------------- navigation */
+.nav {
+  display: grid;
+  gap: var(--s-5);
+  align-content: start;
+}
+
+.nav__group {
+  display: grid;
+  gap: 2px;
+}
+
+.nav__group-label {
+  font-size: var(--fs-micro);
+  font-weight: 500;
+  letter-spacing: var(--track-wide);
+  text-transform: uppercase;
+  color: var(--text-3);
+  padding: 0 var(--s-3) var(--s-2);
+}
+
+.nav__link {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-2);
+  font-size: var(--fs-small);
+  color: var(--text-2);
+  transition: color var(--t-fast), background var(--t-fast);
+}
+
+.nav__link:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+.nav__link[data-active='true'] {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+/* Active marker: a short sky-blue stem, not a filled blue pill. */
+.nav__link[data-active='true']::before {
+  content: '';
+  position: absolute;
+  left: calc(var(--s-3) * -1 + 1px);
+  top: 50%;
+  transform: translateY(-50%);
+  width: 2px;
+  height: 14px;
+  border-radius: 1px;
+  background: var(--blue);
+  box-shadow: 0 0 10px var(--blue-40);
+}
+
+.nav__count {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-label);
+  color: var(--text-3);
+}
+
+.nav__link[data-active='true'] .nav__count {
+  color: var(--blue);
+}
+
+/* -------------------------------------------------------------- rail footer */
+.rail__foot {
+  display: grid;
+  gap: var(--s-3);
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--line);
+}
+
+.rail__meta {
+  display: grid;
+  gap: var(--s-1);
+}
+
+.rail__meta-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+  font-size: var(--fs-label);
+}
+
+.rail__meta-key {
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.rail__meta-val {
+  font-family: var(--font-mono);
+  color: var(--text-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 12ch;
+}
+
+/* ------------------------------------------------------------------- content */
+.content {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.content__main {
+  flex: 1;
+  min-width: 0;
+}
+
+.foot {
+  border-top: 1px solid var(--line);
+  padding: var(--s-5) var(--gutter);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2) var(--s-5);
+  align-items: baseline;
+  justify-content: space-between;
+  font-size: var(--fs-label);
+  letter-spacing: 0.06em;
+  color: var(--text-3);
+}
+
+/* ---------------------------------------------------------- mobile top bar */
+.topbar {
+  display: none;
+}
+
+/* =============================================================================
+   Page scaffolding
+   ============================================================================= */
+
+.page {
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding: var(--s-8) var(--gutter) var(--s-9);
+}
+
+.page--flush {
+  max-width: none;
+  padding: 0;
+}
+
+/* A page head: eyebrow, title, one line of orientation. Nothing else. */
+.page-head {
+  display: grid;
+  gap: var(--s-3);
+  margin-bottom: var(--s-7);
+}
+
+.page-head__eyebrow {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  font-size: var(--fs-label);
+  letter-spacing: var(--track-wide);
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.page-head__title {
+  font-size: var(--fs-title);
+  font-weight: 500;
+  letter-spacing: var(--track-title);
+  color: var(--text);
+  text-wrap: balance;
+}
+
+.page-head__title .mono {
+  font-weight: 400;
+}
+
+.page-head__sub {
+  color: var(--text-2);
+  max-width: 68ch;
+  font-size: var(--fs-body);
+}
+
+/* A band is a full-width horizontal division of the page. Bands, not cards,
+   carry the page-level structure. */
+.band {
+  padding-block: var(--s-7);
+  border-top: 1px solid var(--line);
+}
+
+.band:first-of-type {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.band--tight {
+  padding-block: var(--s-6);
+}
+
+.band__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3) var(--s-5);
+  margin-bottom: var(--s-5);
+}
+
+.band__title {
+  font-size: var(--fs-label);
+  font-weight: 500;
+  letter-spacing: var(--track-wide);
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+
+.band__hint {
+  font-size: var(--fs-small);
+  color: var(--text-3);
+}
+
+/* Column relationships. Named by intent, not by count. */
+.split {
+  display: grid;
+  gap: var(--s-7);
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  align-items: start;
+}
+
+.split--even {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.stack {
+  display: grid;
+  gap: var(--s-5);
+}
+
+.stack--tight {
+  gap: var(--s-3);
+}
+
+.stack--loose {
+  gap: var(--s-6);
+}
+
+/* =============================================================================
+   Responsive
+   ============================================================================= */
+
+@media (max-width: 1080px) {
+  :root {
+    --rail: 200px;
+  }
+  .split {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--s-6);
+  }
+}
+
+/* Below 900px the rail becomes a header. This is a different composition,
+   not a squeezed one: brand + status on one line, nav scrolls beneath. */
+@media (max-width: 900px) {
+  .shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .rail {
+    display: none;
+  }
+
+  .topbar {
+    display: block;
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    border-bottom: 1px solid var(--line);
+    background: var(--surface-veil);
+    backdrop-filter: blur(14px);
+  }
+
+  .topbar__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s-4);
+    padding: var(--s-3) var(--gutter);
+  }
+
+  .topbar__nav {
+    display: flex;
+    gap: var(--s-1);
+    padding: 0 var(--gutter) var(--s-2);
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .topbar__nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .topbar__nav .nav__link {
+    flex: 0 0 auto;
+    padding: var(--s-2) var(--s-3);
+    border-radius: var(--r-pill);
+    white-space: nowrap;
+  }
+
+  .topbar__nav .nav__link[data-active='true'] {
+    background: var(--blue-14);
+    color: var(--blue-bright);
+  }
+
+  .topbar__nav .nav__link[data-active='true']::before {
+    display: none;
+  }
+
+  .page {
+    padding: var(--s-6) var(--gutter) var(--s-8);
+  }
+
+  .page-head {
+    margin-bottom: var(--s-6);
+  }
+
+  .band {
+    padding-block: var(--s-6);
+  }
+}
+
+@media (max-width: 560px) {
+  .page {
+    padding: var(--s-5) var(--gutter) var(--s-7);
+  }
+  .foot {
+    justify-content: flex-start;
+  }
+}

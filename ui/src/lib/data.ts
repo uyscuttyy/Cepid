@@ -128,3 +128,24 @@ export async function getPerformance(): Promise<PerformanceSummary> {
     worstTrade: worst && worst !== best ? { id: worst.id, pnl: worst.outcome.pnl } : null,
   };
 }
+
+/**
+ * Counts the navigation rail displays beside Memory and Trades.
+ *
+ * Returns null for a count that cannot be read rather than 0, so the rail can
+ * omit the badge instead of asserting the agent has no memories when the truth
+ * is that the data directory was unavailable.
+ */
+export async function getShellSummary(): Promise<{
+  memoryCount: number | null;
+  tradeCount: number | null;
+}> {
+  const [experiences, events] = await Promise.all([
+    getExperiences().catch(() => null),
+    getEvents().catch(() => null),
+  ]);
+  return {
+    memoryCount: experiences ? experiences.length : null,
+    tradeCount: events ? events.filter((e) => e.type === 'order_submitted').length : null,
+  };
+}

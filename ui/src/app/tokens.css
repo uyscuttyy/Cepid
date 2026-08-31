@@ -1,59 +1,87 @@
 /* =============================================================================
    CEPID — design tokens
    -----------------------------------------------------------------------------
-   Source: /home/user_uy_scutty/skills/ui-design/SKILL.md
+   Visual identity: deep brown environment + sky-blue intelligence + warm text.
 
-   Principles:
-   - Small type hierarchy (display, title, section, body, label, mono)
-   - Spacing scale in 4px increments
-   - Status communicated by typography + color + spacing, not color alone
-   - No decorative gradients, no card-heavy nesting
-   - Mono numerics for prices, pnl, percentages
+   Rules encoded here:
+   - Deep brown-black environment, never pure black.
+   - Sky blue means "the agent is thinking / remembering / active" — it is a
+     semantic signal, not a brand fill. Most buttons are NOT blue.
+   - Trading states stay muted. This is not a red/green terminal.
+   - Small, deliberate type hierarchy. Mono is reserved for numerics and ids.
+   - Atmosphere is depth, not decoration: opacities here are intentionally tiny.
    ============================================================================= */
 
 :root {
-  --bg: #f7f3ee;
-  --bg-alt: #f8f4ef;
-  --bg-elevated: #fffaf5;
-  --bg-elevated-2: #fdf9f4;
-  --bg-sunken: #f1ece6;
-  --ink: #1c1917;
-  --ink-2: #2a2522;
-  --ink-3: #6b645c;
-  --ink-mute: #7a736b;
-  --border: rgba(60, 50, 40, 0.09);
-  --border-strong: rgba(60, 50, 40, 0.15);
-  --accent: #998eff;
-  --accent-ink: #ffffff;
-  --accent-soft: rgba(153, 142, 255, 0.14);
-  --accent-soft-2: rgba(153, 142, 255, 0.22);
+  color-scheme: dark;
 
-  /* Status (deliberately muted — not a crypto dashboard) */
-  --pos: #577a58;
-  --pos-soft: #eaf2ea;
-  --neg: #a25f66;
-  --neg-soft: #f7ecee;
-  --warn:             #8a6a1c;
-  --warn-soft:        #f3ecdc;
-  --info:             #2c4d6b;
-  --info-soft:        #e1ebf3;
+  /* ---------------------------------------------------------------- surfaces */
+  --bg: #100d0b;              /* application environment */
+  --surface: #181310;         /* large sections and bands */
+  --surface-2: #211a16;       /* cards, panels, modals, expanded detail */
+  --surface-3: #2a211c;       /* hover / selected / deepest layer (sparingly) */
 
-  /* Type — small, intentional hierarchy */
-  --font-sans: "Inter", "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  /* Translucent surfaces — let the atmosphere read through */
+  --surface-thin: rgba(33, 26, 22, 0.55);
+  --surface-veil: rgba(16, 13, 11, 0.72);
 
-  --t-display: 700 clamp(2.2rem, 4.4vw, 3.3rem)/1.04 var(--font-sans);
-  --t-title: 650 clamp(1.55rem, 2.1vw, 2rem)/1.12 var(--font-sans);
-  --t-section:  600 0.875rem/1.3 var(--font-sans);
-  --t-body:     400 0.9375rem/1.55 var(--font-sans);
-  --t-label:    500 0.75rem/1.3   var(--font-sans);
-  --t-mono:     400 0.875rem/1.45 var(--font-mono);
+  /* ------------------------------------------------------------------- text */
+  --text: #f4eee8;            /* primary, warm white */
+  --text-2: #b7ada4;          /* secondary */
+  --text-3: #756c64;          /* muted */
 
-  /* Letter-spacing — small caps for labels, tightened for display */
-  --track-label:  0.06em;
-  --track-display: -0.025em;
+  /* ------------------------------------------------------------------ lines */
+  --line: rgba(244, 238, 232, 0.08);
+  --line-2: rgba(244, 238, 232, 0.14);
+  --line-strong: rgba(244, 238, 232, 0.22);
 
-  /* Spacing — 4px scale */
+  /* ---------------------------------------------- signature — sky blue (AI) */
+  --blue: #72c9f4;
+  --blue-bright: #91d9ff;
+  --blue-ink: #0c1a22;        /* dark text that sits on a blue fill */
+  --blue-08: rgba(114, 201, 244, 0.08);
+  --blue-14: rgba(114, 201, 244, 0.14);
+  --blue-24: rgba(114, 201, 244, 0.24);
+  --blue-40: rgba(114, 201, 244, 0.4);
+  --blue-glow: rgba(114, 201, 244, 0.13);
+
+  /* ---------------------------------------------------- trading states (muted) */
+  --pos: #8cc9a5;
+  --pos-08: rgba(140, 201, 165, 0.08);
+  --pos-20: rgba(140, 201, 165, 0.2);
+  --neg: #d58d8d;
+  --neg-08: rgba(213, 141, 141, 0.08);
+  --neg-20: rgba(213, 141, 141, 0.2);
+  --warn: #d9b981;
+  --warn-08: rgba(217, 185, 129, 0.08);
+  --warn-20: rgba(217, 185, 129, 0.2);
+
+  /* ------------------------------------------------------------------- type */
+  --font-sans: "Geist", "Inter", ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "SF Mono", "JetBrains Mono", Menlo,
+    Consolas, monospace;
+
+  /* Display sizes are fluid; body sizes are fixed for readability. */
+  --fs-display: clamp(2.5rem, 5.2vw, 4rem);
+  --fs-hero: clamp(3.5rem, 9vw, 6.5rem);
+  --fs-title: clamp(1.5rem, 2.4vw, 2rem);
+  --fs-heading: 1.125rem;
+  --fs-body: 0.9375rem;
+  --fs-small: 0.8125rem;
+  --fs-label: 0.6875rem;
+  --fs-micro: 0.625rem;
+
+  --lh-tight: 1.02;
+  --lh-snug: 1.2;
+  --lh-body: 1.6;
+
+  --track-display: -0.03em;
+  --track-title: -0.02em;
+  --track-label: 0.14em;
+  --track-wide: 0.2em;
+
+  /* ---------------------------------------------------------------- spacing */
   --s-1: 4px;
   --s-2: 8px;
   --s-3: 12px;
@@ -62,20 +90,37 @@
   --s-6: 32px;
   --s-7: 48px;
   --s-8: 64px;
+  --s-9: 96px;
+  --s-10: 128px;
 
-  /* Layout */
-  --max-w: 1200px;
-  --gutter: clamp(20px, 4vw, 40px);
+  /* ----------------------------------------------------------------- layout */
+  --rail: 232px;              /* desktop navigation rail */
+  --content-max: 1160px;
+  --gutter: clamp(20px, 4vw, 48px);
 
-  /* Radii — minimal, intentional */
-  --r-1: 6px;
-  --r-2: 12px;
-  --r-3: 20px;
+  /* ------------------------------------------------------------------ radii */
+  --r-1: 4px;
+  --r-2: 8px;
+  --r-3: 14px;
+  --r-4: 22px;
   --r-pill: 9999px;
 
-  /* Motion — short, subordinate */
-  --t-fast: 120ms ease;
-  --t-med:  200ms ease;
+  /* -------------------------------------------------------------- elevation */
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-2: 0 8px 28px -12px rgba(0, 0, 0, 0.7);
+  --shadow-3: 0 24px 60px -24px rgba(0, 0, 0, 0.8);
+  --shadow-blue: 0 0 0 1px var(--blue-24), 0 8px 32px -12px var(--blue-glow);
+
+  /* ----------------------------------------------------------------- motion */
+  --t-fast: 120ms cubic-bezier(0.2, 0, 0.3, 1);
+  --t-med: 220ms cubic-bezier(0.2, 0, 0.3, 1);
+  --t-slow: 420ms cubic-bezier(0.2, 0, 0.3, 1);
 }
 
-@media (prefers-color-scheme: dark) { :root { color-scheme: light; } }
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --t-fast: 1ms linear;
+    --t-med: 1ms linear;
+    --t-slow: 1ms linear;
+  }
+}
