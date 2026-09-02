@@ -62,10 +62,24 @@ port engine modules to generic inputs.
 Agent registry + hashed API keys in platform tenant; key→tenant resolution
 middleware; isolation test (A cannot see B).
 
-## Phase 4 — API v1 + SDK
+## Phase 4 — API v1 + SDK [DONE 03-SEP-26]
 
-HTTP routes (architecture.md §10); `@cepid/client`; demo agent rewritten as
-pure SDK consumer (shims deleted; no in-process paths).
+- [x] CepidApi on node:http (zero new deps): register / query / memories /
+      decisions / outcomes / detail / history / activity / usage / healthz /
+      readyz. Bearer-key auth; key → tenant server-side; callers never state
+      tenants.
+- [x] Influence edges API-enforced: decisions reject cited ids not present
+      in the cited retrieval (INFLUENCE_NOT_SUPPORTED 400); other agents'
+      retrieval rows are 404s. Retrieval rows written on every query.
+- [x] @cepid/client: register/retrieve/recordExperience/recordDecision/
+      recordOutcome/history. 402 seam ready for Phase 7.
+- [x] Demo agent = pure consumer (CEPID_API_URL + CEPID_API_KEY, SDK only;
+      engine imports gone; decision engine is a pure reasoner).
+- [x] THESIS TEST CAUGHT A REAL BUG: vetoed decisions were never recorded —
+      the influence chain for the demo's key moment was lost. Every decided
+      path now records decision + edge + experience.
+- [x] Gates: server 26/26 + tsc clean; agent 8/8 + tsc clean (full stack);
+      sdk tsc clean; sidecar 7/7.
 
 ## Phase 5 — Lifecycle
 

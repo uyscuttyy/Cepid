@@ -9,15 +9,20 @@ Sibyl Memory and only Sibyl Memory — there is no fallback store, by
 decision and by code. The trading agent is a demo consumer. Source of
 truth: `architecture.md` (v2).
 
-## Current state — Phase 2 (Sibyl substrate) complete
+## Current state — Phase 4 (API + SDK) complete
 
 ```
-cepid/    @cepid/server  17/17 tests · generic schema, engine, SibylRepository
+cepid/    @cepid/server  26/26 tests · tsc clean · engine + registry + HTTP API v1
 sidecar/  FastAPI + sibyl-memory-client 0.8.0 · 7/7 pytest · THE substrate
-sdk/      @cepid/client (Phase 4)
-agents/demo-trader  8/8 tests · runs on SibylRepository
+sdk/      @cepid/client · tsc clean · the SDK every agent uses, ours included
+agents/demo-trader  8/8 tests · PURE SDK consumer over HTTP — no engine imports
 contracts/  Foundry · CepidTestMarket compiles · deploy script ready
 ```
+
+The parity requirement is met: the demo agent talks to CEPID through the same
+routes, the same SDK, and the same key flow as any external agent. Influence
+claims are validated server-side against retrieval rows — fabricated
+influence is a 400.
 
 The gate is machine-checked: `cepid/test/sibyl-substrate.test.ts` kills the
 sidecar and asserts every core operation throws `MEMORY_SUBSTRATE_UNAVAILABLE`.
@@ -36,9 +41,15 @@ npm test -w @cepid/server
 npm test -w @cepid/agent-demo-trader
 (cd sidecar && uv run --active pytest tests/ -q)
 
-# 3. Demo agent preview (mock market, real substrate)
+# 3. CEPID API (terminal 2)
 CEPID_SIDECAR_URL=http://127.0.0.1:8765 SIDECAR_TOKEN=dev \
-  npm run agent:preview -w @cepid/agent-demo-trader
+  npx tsx cepid/src/api/main.ts     # listens on 127.0.0.1:8787
+
+# 4. Register an agent + run the demo agent (terminal 3)
+curl -s localhost:8787/v1/agents/register -H 'content-type: application/json' \
+  -d '{"name":"Demo Trading Agent","description":"CEPID reference consumer"}'
+# → set CEPID_API_URL=http://127.0.0.1:8787 CEPID_API_KEY=cepid_… and run:
+npm run agent:preview -w @cepid/agent-demo-trader
 ```
 
 Env: `CEPID_MEMORY_DB` (sidecar DB path, default
@@ -47,13 +58,9 @@ Env: `CEPID_MEMORY_DB` (sidecar DB path, default
 
 ## Transitional (delete in the phase noted)
 
-- Demo agent still calls engine modules **in-process** through
-  `@cepid/server` imports — Phase 4 rewires it to `@cepid/client` over HTTP
-  only (the parity requirement). The sidecar env vars it reads today
-  (`CEPID_SIDECAR_URL`, `SIDECAR_TOKEN`) become API-key config.
-- `agents/demo-trader/src/persistence/events.ts` — local run-events file.
-  Kept for the key-leak regression target until Phase 4 moves the trail
-  fully into the platform journal, then deleted.
+- `agents/demo-trader/src/persistence/events.ts` — the agent's local run
+  events (key-leak regression target). Phase 5 can drop it once the outcome
+  validation loop reads purely from the platform journal.
 - Root `tsconfig.json` — obsolete; remove when UI stops cross-importing.
 
 ## Known correctness debt → all cleared in Phases 1–2 (verified by tests)
@@ -64,9 +71,10 @@ source; the mainnet path remains unexercised by choice.
 
 ## Next steps
 
-1. **Phase 3** — Agent registry: Agent + hashed API keys in the platform
-   tenant (`cepid-platform`), key→tenant middleware, isolation tests at the
-   registry level.
-2. Phase 4 — HTTP API v1 + `@cepid/client`; demo agent becomes a pure SDK
-   consumer (no in-process engine imports).
-3. Phases 5–10 per `project-plan.md`.
+1. **Phase 5** — lifecycle: outcome validation walks decision → retrieval →
+   used memories and reinforces (+0.05) or weakens (−0.03); decay ticks on
+   the API path; strength changes become visible in /v1/memories.
+2. Phase 6 — Base Sepolia for real: deploy CepidTestMarket (~10-min expiry),
+   fund the two throwaway wallets (user funds via faucet), demo trade with
+   txHash into outcome evidence.
+3. Phases 7–10 per `project-plan.md`.
