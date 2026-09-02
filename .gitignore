@@ -8,5 +8,12 @@ data/
 .env*.local
 .DS_Store
 *.log
-.tsbuildinfo
+**/*.tsbuildinfo
 next-env.d.ts
+.sidecar-venv/
+__pycache__/
+*.pyc
+.venv/
+contracts/lib/
+contracts/cache/
+contracts/broadcast/

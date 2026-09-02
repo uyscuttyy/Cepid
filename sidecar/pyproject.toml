@@ -1,0 +1,10 @@
+[project]
+name = "sibyl-sidecar"
+version = "0.1.0"
+description = "CEPID's persistence substrate: a deliberately thin localhost-only REST facade over sibyl-memory-client. No business logic — ranking, importance, and lifecycle all live in the TypeScript product."
+requires-python = ">=3.12"
+dependencies = [
+    "sibyl-memory-client==0.8.0",
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+]

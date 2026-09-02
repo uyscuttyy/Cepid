@@ -1,116 +1,87 @@
 # CEPID — Handoff
 
-## Project
+Updated: 02-SEP-26 (end of Phase 0 unless tests say otherwise).
 
-CEPID (Continuity Experience & Persistent Institutional Decision-memory) — a trading agent that accumulates experiential memory and uses it to change future decisions. Submission for the Sibyl Memory Hackathon.
+## What CEPID is now
 
-## Current state
+Persistent **memory infrastructure for autonomous agents**. The trading agent
+is the demo consumer, not the product. Sibyl Memory (Python) is the persistence
+substrate and must remain load-bearing. Source of truth for all of this:
+`architecture.md` (v2).
 
-V1 foundation is complete and tested. 15/15 tests pass; clean typecheck; CLI runs end-to-end.
+## Current state — Phase 0 (monorepo scaffold) complete
+
+Structure (npm workspaces):
 
 ```
-$ npm test
-# pass 15
-# fail 0
-
-$ npx tsc --noEmit
-(clean)
-
-$ CEPID_NETWORK=mock npm run agent:preview
-{
-  "state": "DECISION_MADE",
-  "session": { ... "memoryIds": ["exp-..."] },
-  "intent": { "direction": "YES", "baseConfidence": 0.6, ... },
-  "decision": { "memoryInfluence": 0, "finalConfidence": 0.6, ... }
-}
+cepid/            @cepid/server   — memory schema, ranking, lifecycle, registry, API (building)
+sidecar/          Python Sibyl facade (Phase 2)
+sdk/              @cepid/client (Phase 4)
+agents/demo-trader @cepid/agent-demo-trader — old agent, demoted to demo consumer
+contracts/        Foundry: CepidTestMarket.sol + Deploy.s.sol (compiles)
+ui/               Next.js dashboard (restructure in Phase 8)
+docs/             developer docs (Phase 9)
 ```
 
-## What's done
+Verified working:
 
-- All CLASH / Somnia / marketplace / competition / arena code removed.
-- New architecture laid out under `src/`: config, market (3 providers), memory (8 modules), decision, strategy, risk, sessions, persistence, app orchestrator, CLI.
-- Memory core: importance scoring, similarity, repository, retrieval, patterns, scars, decay, evaluator.
-- Decision engine: base strategy + memory influence + strong-scar penalty → final decision.
-- Risk engine: per-order, per-session, market validity, price bounds.
-- Limitless Exchange on Base mainnet (real EIP-712 + REST integration).
-- Self-hosted Base Sepolia test market contract (`contracts/CepidTestMarket.sol`).
-- Mock provider for tests.
-- Sessions persist across process restarts.
-- All 15 tests pass, including:
-  - `memory changes the decision (the central product thesis)` — the same market produces YES without memory and NO_TRADE with memory.
-  - `end-to-end: session 2 retrieves session 1 memory and changes decision` — proves memory survives a complete process restart.
-  - patterns, scars, persistence, decay, similarity, importance, risk.
+- `forge build` in `contracts/` — CepidTestMarket compiles against
+  OpenZeppelin v5.1.0 + forge-std v1.9.7 (shallow-cloned into `lib/`; the
+  `--no-commit` flag no longer exists in Foundry 1.7, installs are no-commit
+  by default).
+- `npx tsc --noEmit` clean in `@cepid/server` and `@cepid/agent-demo-trader`
+  after the git-mv restructure + import fixups (42 patches, engine imports
+  `@cepid/server` via package name now).
+- LICENSE (MIT) added — hackathon requires an OSI license.
+- `data/` wiped (approved: outcome-corrupted, demo-only, never committed);
+  `persistence/events.ts` deleted (Sibyl journal replaces it in Phase 2);
+  `test.txt` and tracked `ui/tsconfig.tsbuildinfo` removed; `.gitignore`
+  fixed (`**/*.tsbuildinfo`, python noise).
 
-## What is NOT done (deferred phases)
+Transitional (delete in the phase noted):
 
-- **Next.js frontend** (Phase 8/9) — the spec §17-§25 UI requirements. The backend is API-shaped; the frontend is a separate phase. Design system to follow `/home/user_uy_scutty/skills/ui-design/SKILL.md`.
-- **Real Base Sepolia integration test** (Phase 11) — requires deploying `CepidTestMarket.sol` and funding it. The code path is complete and the provider compiles; only the on-chain deploy + run is missing.
-- **Demo polish** (Phase 12) — scripted two-session reproduction as a single command. The test does this programmatically; a `npm run demo` wrapper is a small addition.
+- `agents/demo-trader/src/config/load.ts` — re-exports `@cepid/server`'s
+  loader (Phase 4: agent gets its own loader).
+- `agents/demo-trader/src/persistence/events.ts` — agent-local event file
+  (Phase 2: Sibyl journal; Phase 4: gone entirely).
+- `JsonMemoryRepository` inside `cepid/src/repository/repository.ts` — the only
+  remaining JSON store (Phase 2: SibylRepository replaces it; interface kept).
+- Root `tsconfig.json` — obsolete once all workspaces typecheck on their own;
+  UI still needs `src/` gone before it's removed. Root `package.json` now
+  only carries workspaces + aggregate scripts.
 
-## Next concrete steps
+## Known correctness debt (fixed in Phase 1, tracked here so it's not lost)
 
-1. **Frontend.** Set up Next.js (App Router) in a sibling directory, consume the orchestrator's output, design per the UI skill.
-2. **Base Sepolia integration test.** Deploy the test market contract, set `CEPID_TEST_MARKET_ADDRESS`, run a real preview.
-3. **Demo script.** Wrap the two-session reproduction in a single `npm run demo` that runs deterministically.
+1. `cepid/src/core/domain.ts` still holds BOTH generic and trading types —
+   Phase 1 splits them (trading → demo agent) and introduces
+   `marketOutcome` vs `tradeOutcome` as separate fields.
+2. `agents/demo-trader/src/app.ts` still writes `wallet: config.privateKey`
+   into events (the key-leak bug) and still stores the market's outcome as
+   the trade's outcome (the inversion bug). Both die in Phase 1 with
+   regression tests.
+3. `risk/engine.ts` dead `spentThisSession` placeholder — Phase 1.
+4. Limitless provider ESM `require()` bug — Phase 1 (moved, fixed, unexercised).
 
-## Decisions worth knowing
+## Next steps (in order)
 
-See `memory.md` for the full set. Highlights:
+1. **Phase 1** — generic core schema + outcome split + key-leak prohibition
+   tests. The demo agent keeps working through the transition.
+2. **Phase 2** — Python sidecar + SibylRepository + restart-survival +
+   load-bearing test; remove JsonMemoryRepository.
+3. Phase 3+ per `project-plan.md`.
 
-- One MarketProvider interface, three implementations (Limitless / Base Sepolia test / mock). Agent does not know which it talks to.
-- JSON file persistence for V1. Repository interface allows a future SQLite layer.
-- No LLM dependency. Architecture leaves seams but V1 is fully deterministic.
-- Scars decay at 25% of ordinary rate; never deleted (audit trail).
-- Risk engine is never bypassed by memory.
-
-## How to run
+## How to run right now
 
 ```bash
-# Install
 npm install
-
-# Tests
-npm test
-
-# Preview a single decision (no transactions)
-CEPID_NETWORK=mock npm run agent:preview
-
-# Execute (requires explicit flags)
-CEPID_NETWORK=mock npm run agent:execute -- --confirm-approval --confirm-order
-
-# For Base Sepolia (after deploying contracts/CepidTestMarket.sol):
-CEPID_NETWORK=base-sepolia npm run agent:preview
+npm run typecheck -ws --if-present
+npm test -w @cepid/server           # engine tests
+npm test -w @cepid/agent-demo-trader
+cd contracts && forge build
 ```
 
-## Repo structure
-
-```
-.
-├── README.md            # Quick start + architecture
-├── prd.md               # Product requirements
-├── project-plan.md      # Phases and progress
-├── handoff.md           # This file
-├── memory.md            # Engineering decisions worth remembering
-├── package.json
-├── tsconfig.json
-├── .env.example
-├── .gitignore
-├── contracts/
-│   ├── CepidTestMarket.sol
-│   └── README.md
-├── src/
-│   ├── app.ts                    # Orchestrator
-│   ├── cli/run-session.ts        # CLI
-│   ├── config/{load,types}.ts
-│   ├── market/{provider,limitless-provider,limitless-orders,base-sepolia-test-provider,mock-provider,index}.ts
-│   ├── memory/{importance,similarity,repository,retriever,linker,scars,decay,evaluator}.ts
-│   ├── decision/engine.ts
-│   ├── strategy/{base-strategy,context}.ts
-│   ├── risk/engine.ts
-│   └── sessions/repository.ts
-└── test/
-    ├── memory-core.test.ts
-    ├── memory-influence.test.ts    # THE thesis test
-    ├── risk.test.ts
-    └── session-restart.test.ts
-```
+The old `npm run agent:preview` path still works from
+`agents/demo-trader/` (mock network) but reads/writes the agent's data dir;
+it gets replaced by the SDK-driven loop in Phase 4. The UI is mid-redesign
+and does not build yet — that's Phase 8, intentionally not touched until the
+product surface exists.

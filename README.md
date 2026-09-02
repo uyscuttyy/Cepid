@@ -1,190 +1,91 @@
 # CEPID
 
-**Continuity Experience & Persistent Institutional Decision-memory**
+**Persistent memory infrastructure for autonomous agents.**
 
-A trading agent that accumulates experiential memory and uses it to change future decisions. Built for the Sibyl Memory Hackathon.
+An agent — any agent — observes its world, decides, and acts. CEPID remembers
+what happened: the situations, the decisions, the outcomes, the lessons. When
+the agent next encounters something similar, CEPID retrieves the experiences
+that matter and hands them over *before* the decision. The agent is the brain.
+**CEPID is the memory.**
 
-## The problem
+Built for the [Sibyl Labs hackathon](https://hack.sibyllabs.org): Sibyl Memory
+is the persistence substrate, and it is load-bearing — remove it and CEPID
+loses its memory entirely. There is no fallback store.
 
-Most trading agents operate like this:
+```
+AGENT (brain)                CEPID (memory)                 SIBYL (substrate)
+ observe    ─┐               ┌─ rank experiences             SQLite + FTS
+ reason     ─┼─ query/paid ─▶│  form patterns & scars  ────▶ per-agent tenants
+ decide     ─┘               │  reinforce what helped
+ act ─┐                      └─ decay the rest
+      ├─ outcome reported ──▶ record experience
+      └─ on Base Sepolia      (real on-chain trades in the demo)
+```
 
-    Market → Analyze → Decide → Trade → Forget
+## What's in this repo
 
-They keep a trade history, but that history doesn't participate in future reasoning. Every market is encountered as if for the first time.
+| Workspace | Package | What it is |
+| --- | --- | --- |
+| `cepid/` | `@cepid/server` | **The product.** Generic memory schema, retrieval & ranking, importance, patterns, scars, decay, lifecycle, agent registry, HTTP API v1, x402 payment gate |
+| `sidecar/` | — | Python facade over `sibyl-memory-client`; localhost-only; zero business logic |
+| `sdk/` | `@cepid/client` | `cepid.retrieve()` / `recordDecision()` / `recordOutcome()` with the x402 buyer loop built in |
+| `agents/demo-trader/` | `@cepid/agent-demo-trader` | **The demo consumer.** A deterministic trading agent on Base Sepolia that uses CEPID exactly like an external agent would |
+| `contracts/` | — | `CepidTestMarket.sol` — minimal on-chain YES/NO market (Foundry, Base Sepolia) |
+| `ui/` | — | Next.js dashboard: memory, agents, influence, activity, demo, developers |
 
-## What CEPID is
+The trading agent is **replaceable and demonstrates the product** — it is not
+the product. Swap in a support agent or an ops agent and CEPID works unchanged:
+the memory schema (`domain`, `text`, `facets`, …) is generic from day one.
 
-CEPID is a trading agent with persistent experiential memory. For every meaningful decision, it captures:
+## The load-bearing claim, made checkable
 
-- The **market conditions** (asset, timeframe, price, volatility, momentum, liquidity, time remaining, indicators)
-- The **decision context** (direction, base confidence, memory influence, final confidence, reasoning)
-- The **execution** (entry price, shares, slippage, transaction hash)
-- The **outcome** (win/loss, realized PnL, settlement result, actual vs expected)
-- The **experience itself** (extracted lesson, importance, surprise, memory strength, tags)
+```bash
+# Kill the Sibyl sidecar and every core endpoint fails with
+# MEMORY_SUBSTRATE_UNAVAILABLE — retrieval, recording, history, all of it.
+npm test -w @cepid/server   # includes load-bearing.test.ts
+```
 
-When the agent encounters a new market, it retrieves the most relevant past experiences, weighs them (with extra weight on "scars" — repeated losses under similar conditions), and adjusts the final decision. The decision engine then produces a structured explanation of how memory influenced the choice.
+The demo proves memory changes behavior, not just that memory exists:
 
-The loop:
-
-    Experience → Memory → Retrieval → Behavior change → New experience → Updated memory
-
-is real, persistent, testable, and visible.
-
-## What CEPID is NOT
-
-- Not a marketplace, competition, ranking, arena, or agent registry
-- Not an LLM-dependent system (V1 is fully deterministic; the architecture leaves room for an LLM extractor later)
-- Not a paper-trading toy (it executes real testnet transactions on Base when configured to)
+1. **Run 1** — fresh agent session. No relevant memory. The agent trades LONG
+   on Base Sepolia with real USDC. The market resolves against it. CEPID
+   stores the experience — situation, decision, reasoning, outcome, txHash.
+2. **Run 2** — new process, same kind of situation. The agent pays $0.01
+   (x402) to query CEPID. CEPID retrieves the losses + the pattern they formed.
+   The agent's confidence drops; it declines the trade. The decision row
+   references the retrieval row — that edge is the evidence, never an
+   assertion. The used memories get reinforced by the outcome; a second,
+   isolated agent sees none of it.
 
 ## Quick start
 
 ```bash
-# 1. Install
-npm install
-
-# 2. Configure
-cp .env.example .env
-# Edit .env: set AGENT_PRIVATE_KEY, CEPID_RPC_URL_BASE_SEPOLIA, CEPID_MAX_COLLATERAL, etc.
-# For a no-network run, set CEPID_NETWORK=mock and leave the key blank.
-
-# 3. Run tests
-npm test
-
-# 4. Preview a single decision
-npm run agent:preview
-
-# 5. Execute (requires --confirm-approval and --confirm-order)
-npm run agent:execute
+npm install                 # TS workspaces
+# Python sidecar (Sibyl substrate)
+cd sidecar && uv venv && uv pip install -e . && uvicorn sibyl_sidecar.main:app --port 8765
+# Contracts (optional, for the on-chain demo)
+cd contracts && forge build
+npm test -w @cepid/server   # engine + isolation + load-bearing tests
 ```
 
-## Architecture
-
-```
-src/
-  config/         - Environment loading, AgentConfig type
-  market/         - MarketProvider interface + three implementations
-    provider.ts       - The abstraction
-    mock-provider.ts  - Deterministic, for tests only
-    limitless-provider.ts    - Limitless Exchange on Base mainnet
-    base-sepolia-test-provider.ts - Self-hosted minimal market on Base Sepolia
-    limitless-orders.ts       - EIP-712 sign + POST /orders
-  memory/         - The product core
-    schema.ts / types in config/types.ts - Experience, Pattern, Scar
-    importance.ts    - How important a memory is
-    similarity.ts    - Vector distance between market contexts
-    repository.ts    - JSON-backed persistent store
-    retriever.ts     - Ranked retrieval with scar/pattern boosts
-    linker.ts        - Pattern detection across experiences
-    scars.ts         - Scar lifecycle
-    decay.ts         - Strength weakening over time
-    evaluator.ts     - decision+outcome → Experience
-  strategy/       - Replaceable strategies + market context derivation
-  decision/       - Memory-informed decision engine
-  risk/           - Hard guardrails (per-order, per-session, market validity)
-  execution/      - (reserved for explicit execution flow; currently inside app.ts)
-  sessions/       - Agent session persistence
-  persistence/    - File repositories
-  app.ts          - Orchestrator (the main loop)
-  cli/            - CLI entrypoint
-```
-
-The agent pipeline:
-
-    MarketProvider → MarketSnapshot → MarketContext → Memory Retrieval →
-    Base Strategy + Memory Influence → TradeIntent → Risk → Execution →
-    Outcome → Memory Evaluator → MemoryRepository
-
-The MarketProvider interface is the seam between CEPID and the world. The agent does not know whether it's talking to Limitless, the Base Sepolia test market, or a mock.
-
-## Memory model
-
-Every meaningful experience becomes an `Experience` with:
-
-- `conditions` — normalized market context
-- `decision` — what the agent decided, including memory influence
-- `execution` — fill details
-- `outcome` — win/loss/PENDING, pnl, lesson
-- `importance` — deterministic score in [0, 1]
-- `surprising` — whether the outcome defied the agent's expectation
-- `strength` — current activation; decays unless reinforced
-- `tags` — coarse fingerprints (e.g. `BTC|15M|vol:high|mom:up|liq:medium|time:>10m`)
-
-Patterns emerge from repeated co-occurring tags. Scars are created when a pattern's win rate stays below 35% and its average PnL is negative. Scars decay more slowly (25% of ordinary rate) and receive a retrieval boost.
-
-## The thesis test
-
-The most important test in the suite (`test/memory-influence.test.ts`):
-
-> Given the same market conditions, the base strategy produces BUY_YES when no relevant memory exists, and NO_TRADE when the agent has accumulated scars from similar losing setups.
-
-This test is non-negotiable. If it ever fails, the product thesis is broken.
-
-## Networks
-
-| Setting         | Behavior                                                                 |
-| --------------- | ------------------------------------------------------------------------ |
-| `mock`          | In-memory markets and fills. No network. For tests and offline iteration.|
-| `base-sepolia`  | Self-hosted minimal market contract on Base Sepolia. Real testnet USDC.  |
-| `base`          | Limitless Exchange on Base mainnet. Production path; small amounts only. |
-
-Limitless Exchange has no testnet deployment. The `base-sepolia` path exists to give the agent a real on-chain environment for the Sibyl demo. See `contracts/CepidTestMarket.sol` for the minimal market contract.
-
-## Setup for Base Sepolia (recommended for the demo)
-
-```bash
-# 1. Install Foundry
-curl -L https://foundry.paradigm.xyz | bash
-
-# 2. Deploy the test market
-cd contracts
-forge install OpenZeppelin/openzeppelin-contracts --no-commit
-forge create --rpc-url https://sepolia.base.org --private-key $AGENT_PRIVATE_KEY \
-  --constructor-args 0x036CbD53842c5426634e7929541eC2318f3dCF7e BTC 15M 900 1 \
-  contracts/CepidTestMarket.sol:CepidTestMarket
-# Copy the deployed address → CEPID_TEST_MARKET_ADDRESS in .env
-
-# 3. Fund the market with testnet USDC
-# (Use the Base Sepolia USDC faucet; then transfer + call fund() so redemptions can pay out)
-
-# 4. Run the agent
-cd ..
-CEPID_NETWORK=base-sepolia npm run agent:preview
-```
-
-## Setup for Limitless (production path)
-
-```bash
-# 1. Get a Limitless API token at https://limitless.exchange → API Tokens
-# 2. Set LMTS_TOKEN_ID, LMTS_TOKEN_SECRET, LMTS_OWNER_ID in .env
-# 3. CEPID_NETWORK=base npm run agent:execute
-```
-
-Limitless has no testnet — small live orders are the only rehearsal strategy they officially support.
-
-## Safety
-
-- Default mode is **preview** (no transactions broadcast).
-- Execution requires both `--confirm-approval` and `--confirm-order` flags.
-- The risk engine sits between decision and execution and is never bypassed by memory.
-- Private keys are loaded from environment only, never logged, never committed.
-- Limits enforced: per-order collateral cap, per-session collateral cap, per-session order count, market active/expired status, price bounds, minimum order size, allowed assets/timeframes.
-
-## Demo
-
-A two-session reproduction (session 1 trades, session 2 sees memory change behavior) is implemented as a unit test in `test/session-restart.test.ts`. The end-to-end CLI flow:
-
-```bash
-# Session 1: trade, lose, learn
-CEPID_DATA_DIR=./data CEPID_NETWORK=mock npm run agent:execute -- --confirm-approval --confirm-order
-# (Directly seed LOSS experiences, or run until a loss happens)
-
-# Session 2: same market, memory should veto
-CEPID_DATA_DIR=./data CEPID_NETWORK=mock npm run agent:preview
-```
+Full setup, API reference, and the demo walkthrough: [`docs/`](docs/) and
+[`architecture.md`](architecture.md).
 
 ## Documentation
 
-- `prd.md` — product requirements and scope
-- `project-plan.md` — implementation phases and progress
-- `handoff.md` — current state, audit findings, what's done
-- `memory.md` — engineering/product decisions and persistent knowledge
+- [`architecture.md`](architecture.md) — the restructure plan, boundaries, schema, phases (source of truth)
+- [`prd.md`](prd.md) — product requirements
+- [`project-plan.md`](project-plan.md) — phase log and progress
+- [`handoff.md`](handoff.md) — current state
+- [`memory.md`](memory.md) — engineering decisions worth remembering
+
+## Safety
+
+- Private keys live only in the demo agent's and the payment receiver's
+  environments — never logged, never serialized, never in memory, never in API
+  responses. Regression tests enforce this.
+- Agent memory isolation is server-enforced (API key → tenant). One agent can
+  never read another's memories.
+- The demo market handles trivial testnet amounts only.
+
+MIT license. See [LICENSE](LICENSE).

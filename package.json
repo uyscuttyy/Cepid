@@ -1,24 +1,16 @@
 {
-  "name": "cepid",
+  "name": "cepid-monorepo",
   "version": "0.1.0",
   "private": true,
-  "description": "Continuity Experience & Persistent Institutional Decision-memory — a trading agent with experiential memory.",
-  "type": "module",
+  "description": "CEPID — persistent memory infrastructure for autonomous agents. Sibyl-backed memory engine + HTTP API + SDK; the demo trading agent is one consumer.",
+  "workspaces": [
+    "cepid",
+    "sdk",
+    "agents/demo-trader"
+  ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node --test --import tsx \"test/**/*.test.ts\"",
-    "demo:session1": "tsx src/cli/run-session.ts --session=1",
-    "demo:session2": "tsx src/cli/run-session.ts --session=2",
-    "agent:preview": "tsx src/cli/run-session.ts --preview",
-    "agent:execute": "tsx src/cli/run-session.ts --execute --confirm-approval --confirm-order"
-  },
-  "dependencies": {
-    "viem": "^2.55.19"
-  },
-  "devDependencies": {
-    "@types/node": "^22.10.0",
-    "tsx": "^4.19.2",
-    "typescript": "^5.7.2"
+    "test": "npm test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present"
   }
 }

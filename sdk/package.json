@@ -1,0 +1,21 @@
+{
+  "name": "@cepid/client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SDK for external agents: cepid.retrieve() / cepid.recordDecision() / cepid.recordOutcome() over HTTP, with the x402 payment flow built in.",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.2"
+  }
+}
