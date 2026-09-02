@@ -1,0 +1,8 @@
+Metadata-Version: 2.4
+Name: sibyl-sidecar
+Version: 0.1.0
+Summary: CEPID's persistence substrate: a deliberately thin localhost-only REST facade over sibyl-memory-client. No business logic — ranking, importance, and lifecycle all live in the TypeScript product.
+Requires-Python: >=3.12
+Requires-Dist: sibyl-memory-client==0.8.0
+Requires-Dist: fastapi>=0.115
+Requires-Dist: uvicorn>=0.30

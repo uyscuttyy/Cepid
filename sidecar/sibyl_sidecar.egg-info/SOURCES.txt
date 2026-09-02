@@ -1,0 +1,9 @@
+pyproject.toml
+sibyl_sidecar/__init__.py
+sibyl_sidecar/main.py
+sibyl_sidecar.egg-info/PKG-INFO
+sibyl_sidecar.egg-info/SOURCES.txt
+sibyl_sidecar.egg-info/dependency_links.txt
+sibyl_sidecar.egg-info/requires.txt
+sibyl_sidecar.egg-info/top_level.txt
+tests/test_sidecar.py

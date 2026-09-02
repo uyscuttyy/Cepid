@@ -110,6 +110,26 @@ export async function evaluateAndStore(
   };
 
   await repo.putMemory(input.agentId, memory);
+
+  // Maintain meta (engine responsibility, not the store's): count + the
+  // magnitude scale that normalizes importance. Computed from the known set
+  // (all previously listed + this one), never invented.
+  const settledMagnitudes = [
+    ...all.filter((m) => m.kind === 'experience' && m.outcome?.magnitude !== undefined)
+      .map((m) => Math.abs(m.outcome!.magnitude!)),
+    ...(input.outcome.magnitude !== undefined ? [Math.abs(input.outcome.magnitude)] : []),
+  ].sort((a, b) => a - b);
+  const scale = settledMagnitudes.length > 0
+    ? Math.max(0.01, Math.min(1, settledMagnitudes[Math.floor(settledMagnitudes.length * 0.75)] ?? 0.1))
+    : 0.1;
+  await repo.setMeta(input.agentId, {
+    experienceCount: meta.experienceCount + 1,
+    patternCount: meta.patternCount,
+    scarCount: meta.scarCount,
+    lastDecayAt: meta.lastDecayAt,
+    magnitudeScale: scale,
+  });
+
   await repo.appendEvent(input.agentId, {
     type: 'memory.created',
     at: now,

@@ -35,7 +35,7 @@ import { loadConfig } from './config/load.js';
 import { toSituation, toOutcome } from './config/types.js';
 import { createMarketProvider, type MarketProvider } from './market/index.js';
 import {
-  JsonMemoryRepository,
+  SibylRepository,
   linkPatterns,
   updateScars,
   runDecay,
@@ -77,7 +77,9 @@ export interface RunResult {
 export async function runOnce(opts: OrchestratorOptions): Promise<RunResult> {
   const config = loadConfig();
   const agentId = config.agentId;
-  const memory = new JsonMemoryRepository(config.dataDir); // Phase 2: SibylRepository
+  const sidecarUrl = process.env.CEPID_SIDECAR_URL ?? 'http://127.0.0.1:8765';
+  const sidecarToken = process.env.SIDECAR_TOKEN ?? 'dev-sidecar-token';
+  const memory = new SibylRepository(sidecarUrl, sidecarToken);
   const sessions = new SessionRepository(config.dataDir);
   const events = new EventStore();
   const provider = createMarketProvider(config, opts.mockSeed);

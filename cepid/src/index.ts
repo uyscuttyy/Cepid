@@ -20,3 +20,4 @@ export * from './memory/decay.js';
 export * from './memory/evaluator.js';
 // persistence seam
 export * from './repository/repository.js';
+export * from './repository/sibyl-repository.js';
