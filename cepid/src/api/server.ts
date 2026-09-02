@@ -43,6 +43,8 @@ import { retrieveMemories, markMemoryUsed } from '../memory/retriever.js';
 import { evaluateAndStore } from '../memory/evaluator.js';
 import { linkPatterns } from '../memory/linker.js';
 import { updateScars } from '../memory/scars.js';
+import { validateAndAdjust } from '../memory/lifecycle.js';
+import { runDecay } from '../memory/decay.js';
 
 export interface ApiDeps {
   repo: MemoryRepository;
@@ -156,6 +158,9 @@ export class CepidApi {
     const limit = typeof body.limit === 'number' ? Math.min(Math.max(body.limit, 1), 50) : 10;
     const minSimilarity = typeof body.minSimilarity === 'number' ? body.minSimilarity : undefined;
 
+    // Deterministic decay tick — memories fade between sessions unless
+    // reinforced by outcomes (the full lifecycle).
+    await runDecay(this.repo, agentId).catch(() => undefined);
     const hits = await retrieveMemories(this.repo, agentId, situation, { limit, minSimilarity });
 
     // THE INFLUENCE EDGE: this retrieval is recorded so the decision that
@@ -299,9 +304,12 @@ export class CepidApi {
       evidence: outcome.evidence ?? null,
     });
 
-    // Phase 5 extends this with the validation loop (reinforce/weaken the
-    // used memories). The seam is here: the decision carries retrievalId.
-    return this.json(res, 201, { outcome: record });
+    // THE LIFECYCLE LOOP: the outcome validates the memories the decision
+    // actually used (decision → retrieval → cited memories), reinforcing the
+    // honest ones and weakening the misleading ones.
+    const validation = await validateAndAdjust(this.repo, agentId, decision, record);
+
+    return this.json(res, 201, { outcome: record, validation });
   }
 
   private async getMemory(res: ServerResponse, agentId: string, id: string) {

@@ -18,6 +18,7 @@ export * from './memory/linker.js';
 export * from './memory/scars.js';
 export * from './memory/decay.js';
 export * from './memory/evaluator.js';
+export * from './memory/lifecycle.js';
 // persistence seam
 export * from './repository/repository.js';
 export * from './repository/sibyl-repository.js';
