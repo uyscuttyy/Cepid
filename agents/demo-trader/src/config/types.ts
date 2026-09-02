@@ -13,10 +13,10 @@
  *  - PnL is computed independently from entry price and resolution and is
  *    the authoritative financial result.
  */
-import type {
-  Situation,
-  MemoryOutcome,
-} from '@cepid/server';
+import type { Situation, OutcomeInput } from '@cepid/client';
+
+/** The agent's view of a memory outcome — the SDK's wire shape. */
+export type MemoryOutcome = OutcomeInput['outcome'];
 
 export type Asset = 'BTC' | 'ETH';
 export type Timeframe = '15M' | '1H';
@@ -221,7 +221,6 @@ export function toOutcome(input: {
     evidence: input.txHash
       ? { chain: 'base-sepolia', txHash: input.txHash }
       : undefined,
-    observedAt: new Date().toISOString(),
   };
 }
 

@@ -25,7 +25,7 @@ export interface SidecarHandle {
 export async function withSidecar(fn: (h: SidecarHandle) => Promise<void>): Promise<void> {
   const dir = mkdtempSync(join(tmpdir(), 'cepid-agent-sidecar-'));
   const dbPath = join(dir, 'memory.db');
-  const port = 9100 + Math.floor(Math.random() * 200);
+  const port = 33000 + Math.floor(Math.random() * 20000);
   const baseUrl = `http://127.0.0.1:${port}`;
   const token = `agent-test-${port}`;
 

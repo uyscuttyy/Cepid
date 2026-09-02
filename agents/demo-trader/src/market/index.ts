@@ -1,7 +1,6 @@
 /**
  * MarketProvider factory — picks the right provider for the configured network.
  */
-import type {  } from '@cepid/server';
 import type { AgentConfig } from '../config/types.js';
 import type { MarketProvider } from './provider.js';
 import { LimitlessMarketProvider } from './limitless-provider.js';

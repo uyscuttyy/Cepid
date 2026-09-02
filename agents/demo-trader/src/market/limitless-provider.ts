@@ -15,7 +15,6 @@
 import { createWalletClient, http, type Hex, type WalletClient } from 'viem';
 import { base } from 'viem/chains';
 import { privateKeyToAccount, type PrivateKeyAccount } from 'viem/accounts';
-import type {  } from '@cepid/server';
 import type { Asset, MarketSnapshot, OrderBook, OrderBookLevel, ResolutionResult, Timeframe, TradeIntent } from '../config/types.js';
 import type {
   MarketProvider,

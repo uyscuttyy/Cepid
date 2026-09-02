@@ -8,7 +8,6 @@
  *
  * The agent does not know which provider is active.
  */
-import type {  } from '@cepid/server';
 import type { Asset, Direction, MarketSnapshot, OrderBook, Outcome, ResolutionResult, Timeframe, TradeIntent } from '../config/types.js';
 
 export interface PlaceOrderResult {

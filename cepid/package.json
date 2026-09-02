@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "CEPID memory infrastructure: generic memory schema, ranking, lifecycle, agent registry, HTTP API v1, x402 payment gate. Persistence substrate is Sibyl Memory via the localhost sidecar — there is no JSON fallback.",
+  "description": "CEPID memory infrastructure: generic memory schema, ranking, lifecycle, agent registry, HTTP API v1, x402 payment gate. Persistence substrate is Sibyl Memory via the localhost sidecar \u2014 there is no JSON fallback.",
   "main": "./src/index.ts",
   "exports": {
     ".": {
@@ -12,7 +12,7 @@
     }
   },
   "scripts": {
-    "test": "node --test --import tsx \"test/**/*.test.ts\"",
+    "test": "node --test --test-concurrency=2 --import tsx \"test/**/*.test.ts\"",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {

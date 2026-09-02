@@ -1,98 +1,80 @@
 /**
- * THESIS TEST — memory changes the decision.
+ * THESIS TEST — memory changes the decision, over the FULL STACK.
  *
- * Runs against the REAL Sibyl substrate (sidecar on a scratch DB): the same
- * persistence the product uses in production. Given the same market
- * conditions, the base strategy fires when no relevant memory exists, and
- * gets vetoed once the agent has accumulated bad memories + a scar from
- * similar setups. If this ever fails, the product thesis is broken.
+ * The demo agent consumes CEPID exactly like an external agent: registered
+ * via the API, driving the SDK, HTTP only. Empty memory → base strategy
+ * fires. Earned bad memories + scar (recorded through the API by earlier
+ * runs) → the same situation gets vetoed. Everything the agent knows about
+ * memory came over the wire.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { linkPatterns, updateScars, evaluateAndStore, markMemoryUsed } from '@cepid/server';
-import type { MemoryOutcome, Situation } from '@cepid/server';
-import { MemoryInformedDecisionEngine } from '../src/decision/engine.js';
-import { DeterministicStrategy } from '../src/strategy/base-strategy.js';
-import { deriveContext } from '../src/strategy/context.js';
-import { toSituation } from '../src/config/types.js';
-import type { MarketSnapshot, OrderBook } from '../src/config/types.js';
-import { withSidecar } from './helpers/sidecar.js';
+import { CepidClient } from '@cepid/client';
+import { runOnce } from '../src/app.js';
+import { toSituation, type TradingConditions } from '../src/config/types.js';
+import { withStack } from './helpers/stack.js';
 
-const AGENT = 'agent-demo-trader';
+const mockSeed = () => ({
+  markets: [
+    {
+      snapshot: {
+        id: 'm-btc', title: 'BTC 15m', asset: 'BTC' as const, timeframe: '15M' as const,
+        expiresAt: Math.floor(Date.now() / 1000) + 600,
+        active: true, yesPrice: 0.58, yesBidSize: 10, yesAskSize: 10, minShares: 1, liquidity: 500,
+      },
+      book: { bids: [{ price: 0.57, size: 10 }], asks: [{ price: 0.59, size: 10 }] },
+    },
+  ],
+});
 
-const baseMarket: MarketSnapshot = {
-  id: 'm-btc-15m',
-  title: 'BTC 15m',
-  asset: 'BTC',
-  timeframe: '15M',
-  expiresAt: Math.floor(Date.now() / 1000) + 600,
-  active: true,
-  yesPrice: 0.58,
-  yesBidSize: 10,
-  yesAskSize: 10,
-  minShares: 1,
-  liquidity: 500,
+const conditions: TradingConditions = {
+  asset: 'BTC', timeframe: '15M', yesPrice: 0.58, midpointDistance: 0.08,
+  volatility: 'high', momentum: 'up', liquidity: 'medium', timeRemainingBucket: '>10m',
 };
 
-const baseBook: OrderBook = {
-  marketId: 'm-btc-15m',
-  bids: [{ price: 0.57, size: 10 }],
-  asks: [{ price: 0.59, size: 10 }],
-  midpoint: 0.58,
-};
+test('thesis (full stack): fresh agent trades; scarred agent vetoes', async () => {
+  await withStack(async (stack) => {
+    process.env.CEPID_NETWORK = 'mock';
+    process.env.CEPID_MAX_COLLATERAL = '1.0';
+    delete process.env.AGENT_PRIVATE_KEY;
 
-test('memory changes the decision (the central product thesis, on Sibyl)', async (t) => {
-  await withSidecar(async (h) => {
-    const repo = h.repo;
-    const conditions = deriveContext(baseMarket, baseBook);
+    // 1) Fresh agent: no memory → base strategy fires, nothing retrieved.
+    const first = await runOnce({ execute: false, confirmApproval: false, confirmOrder: false, mockSeed: mockSeed() });
+    assert.equal(first.intent.direction, 'YES', 'no memory → base strategy fires');
+    assert.equal(first.retrieved.length, 0, 'empty substrate → zero memories returned');
+    assert.ok(first.retrievalId, 'a retrieval row exists anyway (the edge is recorded even when empty)');
+
+    // 2) Earn bad memory through the PUBLIC API — exactly what another run
+    //    of this agent (or any trading agent) would leave behind.
+    const cepid = new CepidClient({ baseUrl: stack.baseUrl, apiKey: stack.apiKey });
     const situation = toSituation(conditions, 'YES');
-    const engine = new MemoryInformedDecisionEngine({
-      strategy: new DeterministicStrategy(),
-      memory: repo,
-      agentId: AGENT,
-    });
-
-    // 1) Empty substrate → base strategy fires, nothing retrieved.
-    const before = await engine.decide(baseMarket, baseBook, conditions, 'YES');
-    assert.equal(before.intent.direction, 'YES', 'no memory → base strategy should fire');
-    assert.equal(before.retrieved.length, 0, 'fresh agent retrieves nothing');
-
-    // 2) Seed earned memory: repeated losses under identical conditions.
-    const loss: MemoryOutcome = {
-      result: 'LOSS', valence: 'bad', magnitude: -0.58,
-      metrics: { pnl: -0.58, shares: 1, entryPrice: 0.58 },
-      marketOutcome: 'NO_WON', tradeOutcome: 'LOSS',
-      observedAt: new Date().toISOString(),
-    };
     for (let i = 0; i < 4; i++) {
-      await evaluateAndStore(repo, {
-        agentId: AGENT, situation,
+      await cepid.recordExperience({
+        situation,
         decision: { action: 'YES', confidenceBase: 0.78, confidenceFinal: 0.78, memoryInfluence: 0, memoryIds: [], reasoning: ['seed'] },
-        outcome: loss, source: 'seed', decisionId: null,
+        outcome: { result: 'LOSS', valence: 'bad', magnitude: -0.58, metrics: { pnl: -0.58 }, marketOutcome: 'NO_WON', tradeOutcome: 'LOSS' },
+        source: 'seed',
       });
     }
-    await linkPatterns(repo, AGENT);
-    await updateScars(repo, AGENT);
 
-    // 3) Same market, now with memory → veto.
-    const after = await engine.decide(baseMarket, baseBook, conditions, 'YES');
-    assert.equal(after.intent.direction, 'NO_TRADE', 'with negative memory → should veto');
-    assert.ok(after.decision.memoryIds.length > 0, 'decision must reference retrieved memories');
-    assert.ok(after.decision.finalConfidence < 0.5, 'final confidence must drop below threshold');
+    // 3) Same market again — the memories come back over HTTP and the
+    //    agent's reasoning vetoes the trade.
+    const second = await runOnce({ execute: false, confirmApproval: false, confirmOrder: false, mockSeed: mockSeed() });
+    assert.ok(second.retrieved.length > 0, 'earned memories retrieved over the API');
+    const scarHit = second.retrieved.some((m) => m.isScar || m.isPattern);
+    assert.ok(scarHit, 'a pattern or scar formed and was returned');
+    assert.equal(second.intent.direction, 'NO_TRADE', 'memory vetoes the same setup');
+    assert.ok(second.decisionContext.finalConfidence < 0.5, 'confidence dropped below threshold');
+    assert.ok(second.decisionContext.memoryIds.length > 0, 'decision cites the used memories');
 
-    // 4) Pattern + scar formed — the veto came from earned structure.
-    const patterns = await repo.listPatterns(AGENT);
-    const scars = await repo.listScars(AGENT);
-    assert.ok(patterns.length > 0, 'a pattern should be detected');
-    assert.ok(scars.length > 0, 'a scar should be created');
-
-    // 5) Reasoning cites the memories — influence is explainable.
-    const cited = after.decision.reasoning.filter((r) => r.includes('mem-')).length;
-    assert.ok(cited > 0, 'reasoning must cite participating memory ids');
-
-    // 6) Real usage counting.
-    await markMemoryUsed(repo, AGENT, after.decision.memoryIds);
-    const first = await repo.getMemory(AGENT, after.decision.memoryIds[0]!);
-    assert.equal(first!.retrievedCount, 1, 'usage recorded when the agent uses memory');
+    // 4) The influence chain is REAL in the platform: the decision row
+    //    references the retrieval row. Verify via the API.
+    const activity = (await (await fetch(`${stack.baseUrl}/v1/activity`, {
+      headers: { authorization: `Bearer ${stack.apiKey}` },
+    })).json()) as { events: Array<{ type: string; usedMemories?: number; retrievalId?: string }> };
+    const decisionEvent = activity.events.find((e: { type: string }) => e.type === 'decision.recorded');
+    assert.ok(decisionEvent, 'decision recorded');
+    assert.ok((decisionEvent.usedMemories ?? 0) > 0, 'the decision used memories');
+    assert.ok(decisionEvent.retrievalId, 'decision cites its retrieval — the influence edge');
   });
 });

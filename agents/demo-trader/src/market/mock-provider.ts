@@ -4,7 +4,6 @@
  * Construct with a seeded scenario (markets + orderbooks + a clock).
  * Never reaches the network. Never exposed in production paths.
  */
-import type {  } from '@cepid/server';
 import type { Direction, MarketSnapshot, OrderBook, OrderBookLevel, Outcome, Timeframe, TradeIntent, ResolutionResult } from '../config/types.js';
 import type {
   MarketProvider,

@@ -24,7 +24,8 @@ export interface SidecarFixture {
 export async function startSidecar(dbPath?: string): Promise<SidecarFixture> {
   const dir = mkdtempSync(join(tmpdir(), 'cepid-sidecar-'));
   const db = dbPath ?? join(dir, 'memory.db');
-  const port = 8900 + Math.floor(Math.random() * 100);
+  // Wide range + retry: the test suite spawns many concurrent sidecars.
+  const port = 12000 + Math.floor(Math.random() * 20000);
   const baseUrl = `http://127.0.0.1:${port}`;
   const token = `test-token-${port}`;
 

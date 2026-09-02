@@ -23,3 +23,5 @@ export * from './repository/repository.js';
 export * from './repository/sibyl-repository.js';
 // registry
 export * from './registry/registry.js';
+// api
+export * from './api/server.js';

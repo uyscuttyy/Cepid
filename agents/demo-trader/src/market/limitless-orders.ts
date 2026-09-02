@@ -7,7 +7,6 @@
  */
 import { encodeFunctionData, type WalletClient, type Hex } from 'viem';
 import { privateKeyToAccount, type PrivateKeyAccount } from 'viem/accounts';
-import type {  } from '@cepid/server';
 import type { TradeIntent } from '../config/types.js';
 import type { PlaceOrderResult } from './provider.js';
 

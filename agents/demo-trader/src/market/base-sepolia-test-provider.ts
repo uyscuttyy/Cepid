@@ -28,7 +28,6 @@ import {
 } from 'viem';
 import { baseSepolia } from 'viem/chains';
 import { privateKeyToAccount, type PrivateKeyAccount } from 'viem/accounts';
-import type {  } from '@cepid/server';
 import type { Asset, MarketSnapshot, OrderBook, Outcome, ResolutionResult, Timeframe, TradeIntent } from '../config/types.js';
 import type {
   MarketProvider,

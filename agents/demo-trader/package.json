@@ -5,13 +5,13 @@
   "type": "module",
   "description": "CEPID's reference demo agent: a deterministic trading agent on Base Sepolia that consumes CEPID through the same public interface as any external agent. This package demonstrates the product; it is not the product.",
   "scripts": {
-    "test": "node --test --import tsx \"test/**/*.test.ts\"",
+    "test": "node --test --test-concurrency=2 --import tsx \"test/**/*.test.ts\"",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "agent:preview": "tsx src/cli/run-session.ts --preview",
     "agent:execute": "tsx src/cli/run-session.ts --execute --confirm-approval --confirm-order"
   },
   "dependencies": {
-    "@cepid/server": "*",
+    "@cepid/client": "*",
     "viem": "^2.55.19"
   },
   "devDependencies": {

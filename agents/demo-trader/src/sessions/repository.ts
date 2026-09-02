@@ -6,7 +6,6 @@
  */
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import type {  } from '@cepid/server';
 import type { AgentSession } from '../config/types.js';
 
 export class SessionRepository {
