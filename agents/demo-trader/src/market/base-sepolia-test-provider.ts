@@ -52,6 +52,10 @@ const TEST_MARKET_ABI = [
   { name: 'minShares', type: 'function', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
   { name: 'asset', type: 'function', stateMutability: 'view', inputs: [], outputs: [{ type: 'string' }] },
   { name: 'timeframe', type: 'function', stateMutability: 'view', inputs: [], outputs: [{ type: 'string' }] },
+  { name: 'yesBalanceOf', type: 'function', stateMutability: 'view', inputs: [{ name: 'owner', type: 'address' }], outputs: [{ type: 'uint256' }] },
+  { name: 'approve', type: 'function', stateMutability: 'nonpayable', inputs: [{ name: 'spender', type: 'address' }, { name: 'amount', type: 'uint256' }], outputs: [{ type: 'bool' }] },
+  { name: 'allowance', type: 'function', stateMutability: 'view', inputs: [{ name: 'owner', type: 'address' }, { name: 'spender', type: 'address' }], outputs: [{ type: 'uint256' }] },
+  { name: 'timeframe', type: 'function', stateMutability: 'view', inputs: [], outputs: [{ type: 'string' }] },
 ] as const;
 
 const USDC_BASE_SEPOLIA = '0x036CbD53842c5426634e7929541eC2318f3dCF7e' as const; // official Base Sepolia USDC
@@ -165,6 +169,12 @@ export class BaseSepoliaTestMarketProvider implements MarketProvider {
     const addr = this.marketAddress();
     if (!addr) return { ok: false, error: 'CEPID_TEST_MARKET_ADDRESS not set' };
 
+    // The market pulls USDC via safeTransferFrom — approve it first.
+    // (Cheap idempotent check: allowance read, then a single approve tx
+    //  only when needed. Approvals persist, so this is ~1 tx per market.)
+    const ok = await this.ensureAllowance(addr);
+    if (!ok) return { ok: false, error: 'usdc_approval_failed' };
+
     const fn = intent.direction === 'YES' ? 'buyYes' : 'buyNo';
     const data = encodeFunctionData({
       abi: TEST_MARKET_ABI,
@@ -192,6 +202,30 @@ export class BaseSepoliaTestMarketProvider implements MarketProvider {
       };
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) };
+    }
+  }
+
+  /** Ensure the market may pull trade-sized USDC from this wallet. */
+  private async ensureAllowance(market: Hex): Promise<boolean> {
+    const usdc = USDC_BASE_SEPOLIA;
+    const owner = this.account.address;
+    try {
+      const current = await this.publicClient.readContract({
+        address: usdc, abi: TEST_MARKET_ABI, functionName: 'allowance', args: [owner, market],
+      });
+      // 100 USDC (6dp) of headroom is plenty for demo-sized trades.
+      if (Number(current) >= 100_000_000) return true;
+      const data = encodeFunctionData({
+        abi: TEST_MARKET_ABI, functionName: 'approve',
+        args: [market, 1_000_000_000n], // 1,000 USDC cap
+      });
+      const tx = await this.walletClient.sendTransaction({
+        account: this.account, chain: baseSepolia, to: usdc, data,
+      });
+      const receipt = await this.publicClient.waitForTransactionReceipt({ hash: tx });
+      return receipt.status === 'success';
+    } catch {
+      return false;
     }
   }
 
