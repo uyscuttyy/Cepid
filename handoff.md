@@ -1,87 +1,72 @@
 # CEPID — Handoff
 
-Updated: 02-SEP-26 (end of Phase 0 unless tests say otherwise).
+Updated: 02-SEP-26 (end of Phase 2).
 
 ## What CEPID is now
 
-Persistent **memory infrastructure for autonomous agents**. The trading agent
-is the demo consumer, not the product. Sibyl Memory (Python) is the persistence
-substrate and must remain load-bearing. Source of truth for all of this:
-`architecture.md` (v2).
+Persistent **memory infrastructure for autonomous agents**, persisted by
+Sibyl Memory and only Sibyl Memory — there is no fallback store, by
+decision and by code. The trading agent is a demo consumer. Source of
+truth: `architecture.md` (v2).
 
-## Current state — Phase 0 (monorepo scaffold) complete
-
-Structure (npm workspaces):
+## Current state — Phase 2 (Sibyl substrate) complete
 
 ```
-cepid/            @cepid/server   — memory schema, ranking, lifecycle, registry, API (building)
-sidecar/          Python Sibyl facade (Phase 2)
-sdk/              @cepid/client (Phase 4)
-agents/demo-trader @cepid/agent-demo-trader — old agent, demoted to demo consumer
-contracts/        Foundry: CepidTestMarket.sol + Deploy.s.sol (compiles)
-ui/               Next.js dashboard (restructure in Phase 8)
-docs/             developer docs (Phase 9)
+cepid/    @cepid/server  17/17 tests · generic schema, engine, SibylRepository
+sidecar/  FastAPI + sibyl-memory-client 0.8.0 · 7/7 pytest · THE substrate
+sdk/      @cepid/client (Phase 4)
+agents/demo-trader  8/8 tests · runs on SibylRepository
+contracts/  Foundry · CepidTestMarket compiles · deploy script ready
 ```
 
-Verified working:
+The gate is machine-checked: `cepid/test/sibyl-substrate.test.ts` kills the
+sidecar and asserts every core operation throws `MEMORY_SUBSTRATE_UNAVAILABLE`.
+Restart survival and cross-tenant isolation are proven against real sidecar
+processes on scratch DBs.
 
-- `forge build` in `contracts/` — CepidTestMarket compiles against
-  OpenZeppelin v5.1.0 + forge-std v1.9.7 (shallow-cloned into `lib/`; the
-  `--no-commit` flag no longer exists in Foundry 1.7, installs are no-commit
-  by default).
-- `npx tsc --noEmit` clean in `@cepid/server` and `@cepid/agent-demo-trader`
-  after the git-mv restructure + import fixups (42 patches, engine imports
-  `@cepid/server` via package name now).
-- LICENSE (MIT) added — hackathon requires an OSI license.
-- `data/` wiped (approved: outcome-corrupted, demo-only, never committed);
-  `persistence/events.ts` deleted (Sibyl journal replaces it in Phase 2);
-  `test.txt` and tracked `ui/tsconfig.tsbuildinfo` removed; `.gitignore`
-  fixed (`**/*.tsbuildinfo`, python noise).
-
-Transitional (delete in the phase noted):
-
-- `agents/demo-trader/src/config/load.ts` — re-exports `@cepid/server`'s
-  loader (Phase 4: agent gets its own loader).
-- `agents/demo-trader/src/persistence/events.ts` — agent-local event file
-  (Phase 2: Sibyl journal; Phase 4: gone entirely).
-- `JsonMemoryRepository` inside `cepid/src/repository/repository.ts` — the only
-  remaining JSON store (Phase 2: SibylRepository replaces it; interface kept).
-- Root `tsconfig.json` — obsolete once all workspaces typecheck on their own;
-  UI still needs `src/` gone before it's removed. Root `package.json` now
-  only carries workspaces + aggregate scripts.
-
-## Known correctness debt (fixed in Phase 1, tracked here so it's not lost)
-
-1. `cepid/src/core/domain.ts` still holds BOTH generic and trading types —
-   Phase 1 splits them (trading → demo agent) and introduces
-   `marketOutcome` vs `tradeOutcome` as separate fields.
-2. `agents/demo-trader/src/app.ts` still writes `wallet: config.privateKey`
-   into events (the key-leak bug) and still stores the market's outcome as
-   the trade's outcome (the inversion bug). Both die in Phase 1 with
-   regression tests.
-3. `risk/engine.ts` dead `spentThisSession` placeholder — Phase 1.
-4. Limitless provider ESM `require()` bug — Phase 1 (moved, fixed, unexercised).
-
-## Next steps (in order)
-
-1. **Phase 1** — generic core schema + outcome split + key-leak prohibition
-   tests. The demo agent keeps working through the transition.
-2. **Phase 2** — Python sidecar + SibylRepository + restart-survival +
-   load-bearing test; remove JsonMemoryRepository.
-3. Phase 3+ per `project-plan.md`.
-
-## How to run right now
+## How to run (dev)
 
 ```bash
-npm install
-npm run typecheck -ws --if-present
-npm test -w @cepid/server           # engine tests
+# 1. Sidecar (terminal 1)
+cd sidecar && uv venv && uv pip install -e . pytest httpx
+SIDECAR_TOKEN=dev uv run uvicorn sibyl_sidecar.main:app --port 8765
+
+# 2. Tests (terminal 2) — they boot their own sidecars on scratch DBs
+npm test -w @cepid/server
 npm test -w @cepid/agent-demo-trader
-cd contracts && forge build
+(cd sidecar && uv run --active pytest tests/ -q)
+
+# 3. Demo agent preview (mock market, real substrate)
+CEPID_SIDECAR_URL=http://127.0.0.1:8765 SIDECAR_TOKEN=dev \
+  npm run agent:preview -w @cepid/agent-demo-trader
 ```
 
-The old `npm run agent:preview` path still works from
-`agents/demo-trader/` (mock network) but reads/writes the agent's data dir;
-it gets replaced by the SDK-driven loop in Phase 4. The UI is mid-redesign
-and does not build yet — that's Phase 8, intentionally not touched until the
-product surface exists.
+Env: `CEPID_MEMORY_DB` (sidecar DB path, default
+`~/.sibyl-memory/cepid-memory.db`), `SIDECAR_TOKEN`, `SIDECAR_PORT`,
+`CEPID_SIDECAR_URL` (agent → sidecar).
+
+## Transitional (delete in the phase noted)
+
+- Demo agent still calls engine modules **in-process** through
+  `@cepid/server` imports — Phase 4 rewires it to `@cepid/client` over HTTP
+  only (the parity requirement). The sidecar env vars it reads today
+  (`CEPID_SIDECAR_URL`, `SIDECAR_TOKEN`) become API-key config.
+- `agents/demo-trader/src/persistence/events.ts` — local run-events file.
+  Kept for the key-leak regression target until Phase 4 moves the trail
+  fully into the platform journal, then deleted.
+- Root `tsconfig.json` — obsolete; remove when UI stops cross-importing.
+
+## Known correctness debt → all cleared in Phases 1–2 (verified by tests)
+
+Outcome inversion, key persistence, dead risk placeholder — fixed and
+regression-tested. Limitless ESM `require()` bug is fixed in the moved
+source; the mainnet path remains unexercised by choice.
+
+## Next steps
+
+1. **Phase 3** — Agent registry: Agent + hashed API keys in the platform
+   tenant (`cepid-platform`), key→tenant middleware, isolation tests at the
+   registry level.
+2. Phase 4 — HTTP API v1 + `@cepid/client`; demo agent becomes a pure SDK
+   consumer (no in-process engine imports).
+3. Phases 5–10 per `project-plan.md`.

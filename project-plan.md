@@ -38,14 +38,26 @@ DecisionRecord / OutcomeRecord; `marketOutcome` vs `tradeOutcome` separation;
 key-leak prohibition tests (grep + runtime); regression: the inverted-NO case;
 port engine modules to generic inputs.
 
-## Phase 2 — Sibyl substrate
+## Phase 2 — Sibyl substrate [DONE 02-SEP-26]
 
-Python sidecar (localhost, token-guarded, tenant-scoped MemoryClient);
-`SibylRepository`; journal migration; restart-survival test;
-`load-bearing.test.ts` (kill sidecar → core endpoints fail);
-remove `JsonMemoryRepository`.
+- [x] sidecar/: FastAPI facade over sibyl-memory-client==0.8.0 — localhost
+      bind, bearer token, per-request MemoryClient keyed by
+      X-Agent-Tenant (tenant chosen by CEPID post-auth, never by callers);
+      entities/state/journal routes; zero business logic. pytest 7/7.
+- [x] SibylRepository implements MemoryRepository over sidecar HTTP:
+      memories/patterns/scars/retrievals/decisions/outcomes → entities,
+      journal → write_event/read_events, meta → tenant-scoped state tier.
+- [x] JsonMemoryRepository DELETED (D1). No fallback store exists.
+- [x] Evaluator maintains meta (counts + magnitude scale) — engine-owned.
+- [x] THE GATE executable: killing the sidecar fails all 9 core ops with
+      MEMORY_SUBSTRATE_UNAVAILABLE (load-bearing.test in
+      sibyl-substrate.test.ts).
+- [x] Restart survival: fresh sidecar process on the same DB sees all
+      memory/patterns/scars/journal. Agent e2e re-proves the session-2 veto
+      across a real uvicorn death.
+- [x] Full suite on real substrate: @cepid/server 17/17, demo-trader 8/8.
 
-## Phase 3 — Registry & isolation
+## Phase 3 — Registry & isolation [NEXT]
 
 Agent registry + hashed API keys in platform tenant; key→tenant resolution
 middleware; isolation test (A cannot see B).
