@@ -216,4 +216,29 @@ export class SibylRepository implements MemoryRepository {
   async setMeta(agentId: string, meta: MemoryMeta): Promise<void> {
     await this.call('POST', '/state', agentId, { key: 'meta', body: meta });
   }
+
+  /* ------------------------------------------------- generic record I/O --- */
+
+  async putRecord(agentId: string, category: string, name: string, body: Record<string, unknown>): Promise<void> {
+    await this.call('POST', '/entities', agentId, { category, name, body });
+  }
+
+  async getRecord(agentId: string, category: string, name: string): Promise<Record<string, unknown> | null> {
+    try {
+      const row = await this.call<SidecarEntityRow>(
+        'GET', `/entities/${category}/${encodeURIComponent(name)}`, agentId,
+      );
+      return { ...row.body, id: row.name } as Record<string, unknown>;
+    } catch (e) {
+      if (e instanceof CepidError && e.code === 'NOT_FOUND') return null;
+      throw e;
+    }
+  }
+
+  async listRecords(agentId: string, category: string): Promise<Array<Record<string, unknown>>> {
+    const res = await this.call<{ entities: SidecarEntityRow[] }>(
+      'GET', `/entities?category=${category}&limit=2000`, agentId,
+    );
+    return res.entities.map((row) => ({ ...row.body, id: row.name }) as Record<string, unknown>);
+  }
 }

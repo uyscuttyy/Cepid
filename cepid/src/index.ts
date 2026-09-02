@@ -21,3 +21,5 @@ export * from './memory/evaluator.js';
 // persistence seam
 export * from './repository/repository.js';
 export * from './repository/sibyl-repository.js';
+// registry
+export * from './registry/registry.js';

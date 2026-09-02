@@ -51,6 +51,12 @@ export interface MemoryRepository {
   // Meta
   getMeta(agentId: string): Promise<MemoryMeta>;
   setMeta(agentId: string, meta: MemoryMeta): Promise<void>;
+
+  // Generic record I/O (platform metadata, registry, usage rows).
+  // Maps directly to Sibyl entities: (tenant, category, name) → body.
+  putRecord(agentId: string, category: string, name: string, body: Record<string, unknown>): Promise<void>;
+  getRecord(agentId: string, category: string, name: string): Promise<Record<string, unknown> | null>;
+  listRecords(agentId: string, category: string): Promise<Array<Record<string, unknown>>>;
 }
 
 /** New memory id. */
