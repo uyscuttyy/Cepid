@@ -103,6 +103,37 @@ export class CepidError extends Error {
   }
 }
 
+/**
+ * Build an x402-paying fetch for the demo agent (and any agent that wants
+ * paid retrieval without writing payment code). Requires viem +
+ * @x402/fetch + @x402/evm — the demo agent passes its signer; external
+ * agents can do the same or bring their own payment layer.
+ *
+ * Phase 7: the 402 → sign → retry loop runs INSIDE the returned fetch.
+ */
+export async function buildPayingFetch(
+  payerPrivateKey: `0x${string}`,
+  rpcUrl: string = 'https://sepolia.base.org',
+): Promise<typeof globalThis.fetch> {
+  const { privateKeyToAccount } = await import('viem/accounts');
+  const { createPublicClient, http } = await import('viem');
+  const { baseSepolia } = await import('viem/chains');
+  const { x402Client } = await import('@x402/core/client');
+  const { registerExactEvmScheme } = await import('@x402/evm/exact/client');
+  const { wrapFetchWithPayment } = await import('@x402/fetch');
+
+  const account = privateKeyToAccount(payerPrivateKey);
+  const publicClient = createPublicClient({ chain: baseSepolia, transport: http(rpcUrl) });
+  const client = new x402Client();
+  registerExactEvmScheme(client, {
+    signer: account as never,
+    schemeOptions: { 84532: { rpcUrl } },
+    networks: ['eip155:84532' as const],
+  });
+  void publicClient;
+  return wrapFetchWithPayment(fetch, client);
+}
+
 export interface CepidClientOptions {
   baseUrl: string;
   apiKey: string;

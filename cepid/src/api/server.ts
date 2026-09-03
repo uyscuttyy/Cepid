@@ -45,21 +45,26 @@ import { linkPatterns } from '../memory/linker.js';
 import { updateScars } from '../memory/scars.js';
 import { validateAndAdjust } from '../memory/lifecycle.js';
 import { runDecay } from '../memory/decay.js';
+import { createPaywall, checkPayment, type X402Paywall, type PaymentCheckResult } from './x402.js';
 
 export interface ApiDeps {
   repo: MemoryRepository;
   registry: AgentRegistry;
   port: number;
+  /** x402 gate; null (or unset CEPID_PAYMENT_WALLET_KEY) leaves routes free. */
+  paywall?: X402Paywall | null;
 }
 
 export class CepidApi {
   readonly server: Server;
   private readonly repo: MemoryRepository;
   private readonly registry: AgentRegistry;
+  private readonly paywall: X402Paywall | null;
 
   constructor(private readonly deps: ApiDeps) {
     this.repo = deps.repo;
     this.registry = deps.registry;
+    this.paywall = deps.paywall ?? null;
     this.server = createServer((req, res) => {
       this.handle(req, res).catch((e) => this.fail(res, e));
     });
@@ -102,7 +107,41 @@ export class CepidApi {
       const agentId = auth.agentId;
 
       if (method === 'POST' && path === '/v1/memories/query') {
-        return this.query(res, agentId, body);
+        // x402 gate (D2/D3): this route costs $0.01. Unpaid → 402 with
+        // PAYMENT-REQUIRED; paid → verify → handler → settle → Usage row.
+        const payment = await checkPayment(this.paywall, req, path, method);
+        if (payment.type === 'payment-required') {
+          res.writeHead(payment.response.status, payment.response.headers);
+          res.end(typeof payment.response.body === 'string'
+            ? payment.response.body
+            : JSON.stringify(payment.response.body ?? {}));
+          return;
+        }
+        if (payment.type === 'verified') {
+          const result = await this.queryPayload(agentId, body);
+          const settlement = await payment.settle();
+          if (settlement.ok) {
+            // Real metering on a settled payment — nothing fabricated.
+            await this.repo.appendEvent(agentId, {
+              type: 'usage.settled',
+              at: new Date().toISOString(),
+              agentId,
+              route: '/v1/memories/query',
+              price: this.paywall?.price ?? '$0.01',
+              payTo: this.paywall?.payTo,
+              txHash: settlement.txHash ?? null,
+              payer: settlement.payer ?? null,
+            });
+            const headers = { ...settlement.headers };
+            const payload = JSON.stringify(result);
+            res.writeHead(200, { ...headers, 'content-type': 'application/json' });
+            res.end(payload);
+            return;
+          }
+          // Settlement failed after handler success → honest 402-family error.
+          return this.json(res, 402, { error: 'SETTLEMENT_FAILED', message: 'payment could not be settled' });
+        }
+        return this.json(res, 200, await this.queryPayload(agentId, body));
       }
       if (method === 'POST' && path === '/v1/memories') {
         return this.recordMemory(res, agentId, body);
@@ -153,7 +192,8 @@ export class CepidApi {
     return this.json(res, 200, { agents });
   }
 
-  private async query(res: ServerResponse, agentId: string, body: Record<string, unknown>) {
+  /** Build the query result payload (shared by free + paid paths). */
+  private async queryPayload(agentId: string, body: Record<string, unknown>): Promise<Record<string, unknown>> {
     const situation = this.parseSituation(body.situation);
     const limit = typeof body.limit === 'number' ? Math.min(Math.max(body.limit, 1), 50) : 10;
     const minSimilarity = typeof body.minSimilarity === 'number' ? body.minSimilarity : undefined;
@@ -185,8 +225,7 @@ export class CepidApi {
       query: situation.text,
       returned: hits.length,
     });
-
-    return this.json(res, 200, {
+    return {
       retrievalId: retrieval.id,
       memories: hits.map((h) => ({
         id: h.memory.id,
@@ -203,7 +242,7 @@ export class CepidApi {
         isPattern: h.isPattern,
         retrievalScore: h.retrievalScore,
       })),
-    });
+    };
   }
 
   private async recordMemory(res: ServerResponse, agentId: string, body: Record<string, unknown>) {
@@ -332,10 +371,16 @@ export class CepidApi {
     return this.json(res, 200, { agentId, events });
   }
 
-  private async usage(res: ServerResponse, _agentId: string) {
-    // Phase 7: real Usage rows on settled x402 payments. Until then the
-    // honest answer is empty — nothing fabricated.
-    return this.json(res, 200, { usage: [], note: 'metering arrives with the x402 gate (Phase 7)' });
+  private async usage(res: ServerResponse, agentId: string) {
+    const rows = await this.repo.listRecords(agentId, 'usage');
+    const settled = rows.filter((r) => r.type === 'usage.settled');
+    return this.json(res, 200, {
+      usage: settled,
+      count: settled.length,
+      note: settled.length === 0
+        ? 'no settled payments yet — usage appears when x402 payments settle'
+        : undefined,
+    });
   }
 
   private async readyz(res: ServerResponse, deep: boolean) {
