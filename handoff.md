@@ -1,6 +1,6 @@
 # CEPID — Handoff
 
-Updated: 02-SEP-26 (end of Phase 2).
+Updated: 04-SEP-26 (end of Phase 8 — UI on the live API).
 
 ## What CEPID is now
 
@@ -9,25 +9,49 @@ Sibyl Memory and only Sibyl Memory — there is no fallback store, by
 decision and by code. The trading agent is a demo consumer. Source of
 truth: `architecture.md` (v2).
 
-## Current state — Phase 4 (API + SDK) complete
+## Current state — Phase 8 (UI restructure) complete
 
 ```
-cepid/    @cepid/server  26/26 tests · tsc clean · engine + registry + HTTP API v1
-sidecar/  FastAPI + sibyl-memory-client 0.8.0 · 7/7 pytest · THE substrate
-sdk/      @cepid/client · tsc clean · the SDK every agent uses, ours included
-agents/demo-trader  8/8 tests · PURE SDK consumer over HTTP — no engine imports
-contracts/  Foundry · CepidTestMarket compiles · deploy script ready
+cepid/      @cepid/server        tsc clean · engine + registry + HTTP API v1 + x402
+sidecar/    FastAPI + sibyl-memory-client 0.8.0 · 7/7 pytest · THE substrate
+sdk/        @cepid/client        tsc clean · the SDK every agent uses, ours included
+agents/demo-trader              pure consumer over HTTP — no engine imports
+contracts/  Foundry              CepidTestMarket compiles · deploy script ready
+ui/         @cepid-ui (Next.js)  9/9 client tests · tsc clean · next build clean
+                                reconnected to the live /v1/* API
 ```
 
-The parity requirement is met: the demo agent talks to CEPID through the same
-routes, the same SDK, and the same key flow as any external agent. Influence
-claims are validated server-side against retrieval rows — fabricated
-influence is a 400.
+The load-bearing claim remains mechanical: `cepid/test/sibyl-substrate.test.ts`
+kills the sidecar and asserts every core operation throws
+`MEMORY_SUBSTRATE_UNAVAILABLE`. Restart survival and cross-tenant isolation
+are proven against real sidecar processes on scratch DBs.
 
-The gate is machine-checked: `cepid/test/sibyl-substrate.test.ts` kills the
-sidecar and asserts every core operation throws `MEMORY_SUBSTRATE_UNAVAILABLE`.
-Restart survival and cross-tenant isolation are proven against real sidecar
-processes on scratch DBs.
+## Phase 8 (this commit) — what changed
+
+The UI was the only piece of the restructure that hadn't landed. It was
+reading the **old** demo-agent JSON store at `${CEPID_DATA_DIR}/data/*.json`
+and broke when the restructure wiped that directory. It is now wired to
+the live `/v1/*` API through a typed client.
+
+- New: `ui/src/lib/cepid.ts` — typed client (fetch-injectable for tests).
+  Surfaces `MEMORY_SUBSTRATE_UNAVAILABLE` and other server errors as
+  `CepidClientError`. 9 unit tests pin the contract.
+- New: `ui/test/cepid-client.test.ts` — RED→GREEN over the contract.
+- New: `ui/src/app/api/register/route.ts` — server proxy for the
+  registration form (the key never leaves the platform).
+- Rewritten pages (against the generic `MemoryRecord` schema, not trading):
+  Overview, Memories (list + detail), Agents (list + detail), Activity,
+  Demo, Developers.
+- New nav per architecture §13: Overview / Memories / Agents / Activity /
+  Demo / Developers. The dead `/trades` link and broken `Section`/`Stat`
+  imports are gone.
+- Deleted: orphaned `Header.tsx`/`Footer.tsx`/`view.ts`, the JSON-
+  pass-through `/api/agent|/api/events|/api/memory/*|/api/performance|
+  /api/sessions` routes, and every page that imported missing primitives.
+- `next build` and `tsc --noEmit` are green. The `ui/` workspace is now in
+  the monorepo root. The build warning about multiple lockfiles is
+  silenced by pinning `outputFileTracingRoot` in `next.config.mjs`.
+- `CEPID_DATA_DIR` is no longer consulted anywhere.
 
 ## How to run (dev)
 
@@ -36,45 +60,50 @@ processes on scratch DBs.
 cd sidecar && uv venv && uv pip install -e . pytest httpx
 SIDECAR_TOKEN=dev uv run uvicorn sibyl_sidecar.main:app --port 8765
 
-# 2. Tests (terminal 2) — they boot their own sidecars on scratch DBs
-npm test -w @cepid/server
-npm test -w @cepid/agent-demo-trader
-(cd sidecar && uv run --active pytest tests/ -q)
-
-# 3. CEPID API (terminal 2)
+# 2. CEPID API (terminal 2)
 CEPID_SIDECAR_URL=http://127.0.0.1:8765 SIDECAR_TOKEN=dev \
   npx tsx cepid/src/api/main.ts     # listens on 127.0.0.1:8787
 
-# 4. Register an agent + run the demo agent (terminal 3)
-curl -s localhost:8787/v1/agents/register -H 'content-type: application/json' \
-  -d '{"name":"Demo Trading Agent","description":"CEPID reference consumer"}'
-# → set CEPID_API_URL=http://127.0.0.1:8787 CEPID_API_KEY=cepid_… and run:
-npm run agent:preview -w @cepid/agent-demo-trader
+# 3. UI (terminal 3)
+cd ui
+CEPID_API_URL=http://127.0.0.1:8787 CEPID_API_KEY=<a key> npm run dev
+# open http://localhost:3000
+
+# 4. Tests
+npm test                                # all workspaces
+npm test -w cepid-ui                    # 9/9 client tests
+npm run typecheck                       # all four workspaces
 ```
 
-Env: `CEPID_MEMORY_DB` (sidecar DB path, default
-`~/.sibyl-memory/cepid-memory.db`), `SIDECAR_TOKEN`, `SIDECAR_PORT`,
-`CEPID_SIDECAR_URL` (agent → sidecar).
+To exercise the dashboard without a key, omit `CEPID_API_KEY` — the
+registry and liveness views still load; private pages show a clear
+"set CEPID_API_KEY" empty state.
 
-## Transitional (delete in the phase noted)
-
-- `agents/demo-trader/src/persistence/events.ts` — the agent's local run
-  events (key-leak regression target). Phase 5 can drop it once the outcome
-  validation loop reads purely from the platform journal.
-- Root `tsconfig.json` — obsolete; remove when UI stops cross-importing.
-
-## Known correctness debt → all cleared in Phases 1–2 (verified by tests)
-
-Outcome inversion, key persistence, dead risk placeholder — fixed and
-regression-tested. Limitless ESM `require()` bug is fixed in the moved
-source; the mainnet path remains unexercised by choice.
+Env: `CEPID_MEMORY_DB` (sidecar DB), `SIDECAR_TOKEN`, `SIDECAR_PORT`,
+`CEPID_SIDECAR_URL` (CEPID → sidecar), `CEPID_API_URL` (UI → CEPID),
+`CEPID_API_KEY` (UI → CEPID, optional for the public surface).
 
 ## Next steps
 
-1. **Phase 5** — lifecycle: outcome validation walks decision → retrieval →
-   used memories and reinforces (+0.05) or weakens (−0.03); decay ticks on
-   the API path; strength changes become visible in /v1/memories.
-2. Phase 6 — Base Sepolia for real: deploy CepidTestMarket (~10-min expiry),
-   fund the two throwaway wallets (user funds via faucet), demo trade with
-   txHash into outcome evidence.
-3. Phases 7–10 per `project-plan.md`.
+1. **Phase 9** — `docs/api.md`, `docs/agents.md`, `docs/integration.md`,
+   and the external-agent walkthrough. The registration flow is already
+   done; the docs are the gap.
+2. Phase 10 — two-run demo per architecture §15 against the live stack.
+3. Submission — README, 2–5 min demo video, two build-in-public posts.
+
+## Known limitations (carried)
+
+- Server tests (`npm test -w @cepid/server`) require `uvicorn` on PATH —
+  environmental, not changed by Phase 8.
+- The demo agent's local run-events file (`agents/demo-trader/src/persistence/events.ts`)
+  is still listed in the architecture as Phase-5-deletable. The platform
+  journal is now the source of truth; the file is dead weight. Drop it
+  in the Phase 9 boundary.
+- No background decay scheduler; decay ticks on the API path.
+
+## What this handoff no longer says
+
+The previous handoff (02-SEP-26) said "Phase 4 complete, Phase 5 next."
+That was correct at the time but stale by the time it was read. The
+phases are now real: Phases 0–8 are done. Read `project-plan.md` for
+the current log.

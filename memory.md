@@ -82,3 +82,23 @@ lint test plus a runtime key-shape scan enforce it.
 3. Cross-agent pattern sharing (opt-in, explicit) — today isolation is absolute.
 4. UI polish pass: relationship graph view for memories (§16 of the old design
    discussion, still wanted).
+
+## Phase 8 (UI restructure) — the "why" of how it landed
+
+The restructure landed the engine, the substrate, the registry, the API,
+and the demo agent. The UI was the one piece that didn't ship — it was
+still reading the old demo-agent JSON store (`data/memory/experiences.json`
+etc.) and importing primitives that had been renamed. The 04-SEP-26 work
+reconnected it to the live platform through a typed client pinned by tests.
+
+The product story on every page is now: *the agent met the same situation
+twice and behaved differently the second time because CEPID remembered.*
+That story is in the **Memories** page (lifecycle strip: situation →
+retrieval → decision → outcome → reinforced), in **Activity** (the journal
+that proves the chain), and in **Demo** (the two-run narrative that the
+hackathon rubric rewards).
+
+The TDD red-green cycle the UI work used is documented in the test file
+itself (`ui/test/cepid-client.test.ts`): the failing test is the contract.
+Future client changes should follow the same cycle — change a test, watch
+it fail, change the client, watch it pass.

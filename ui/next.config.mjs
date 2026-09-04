@@ -1,15 +1,15 @@
 /** @type {import('next').NextConfig} */
-const path = await import('node:path');
-const projectRoot = path.resolve(process.cwd(), '..');
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const projectRoot = path.resolve(__dirname, '..');
 
 const nextConfig = {
   reactStrictMode: true,
-  // Two lockfiles in the workspace (the agent + the UI). Tell Next where the
-  // project root really is so it doesn't infer the wrong one.
+  // Two lockfiles in the workspace (the monorepo + the UI). Pin the trace
+  // root so Next.js stops inferring the wrong one.
   outputFileTracingRoot: projectRoot,
-  env: {
-    CEPID_DATA_DIR: process.env.CEPID_DATA_DIR ?? path.join(projectRoot, 'data'),
-  },
 };
 
 export default nextConfig;

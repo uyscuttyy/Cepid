@@ -81,30 +81,48 @@ middleware; isolation test (A cannot see B).
 - [x] Gates: server 26/26 + tsc clean; agent 8/8 + tsc clean (full stack);
       sdk tsc clean; sidecar 7/7.
 
-## Phase 5 — Lifecycle
+## Phase 5 — Lifecycle [DONE]
 
 Retrieval rows on every used query; ranking with new signals; reinforce/weaken
 on outcome; decay integration; counts surfaced.
 
-## Phase 6 — Base Sepolia for real
+## Phase 6 — Base Sepolia for real [DONE]
 
 Deploy CepidTestMarket (~10-min expiry, D5); fund wallets (D4); demo loop
 executes a real trade; PnL from chain; txHash into outcome evidence.
 
-## Phase 7 — x402 gate
+## Phase 7 — x402 gate [DONE]
 
 In-process facilitator (no CDP key); protect /v1/memories/query at $0.01;
 SDK buyer loop; Usage rows on settled payments.
 
-## Phase 8 — UI restructure
+## Phase 8 — UI restructure [DONE]
 
-Nav: Overview / Memories / Agents / Activity / Demo / Developers; influence
-story from real edges; substrate health; broken pages rewritten, not repaired.
+- UI reconnected to the live /v1/* API via a typed client (`@/lib/cepid.ts`,
+  9 unit tests pinning the contract). Old `data/`-directory read path deleted;
+  `CEPID_DATA_DIR` removed.
+- Nav per architecture §13: Overview / Memories / Agents / Activity /
+  Demo / Developers. Broken `/trades` link and `Section`/`Stat` imports gone.
+- Pages rewritten against the generic platform schema (no agent vocabulary):
+  Overview, Memories list + detail, Agents list + detail, Activity (journal
+  feed), Demo (the two-run narrative), Developers (real registration form
+  posting to `/api/register` → `/v1/agents/register`).
+- `next build` and `tsc --noEmit` green in the UI workspace; the `ui/`
+  workspace added to the monorepo root; the orphaned `Header.tsx`/`Footer.tsx`/
+  `view.ts` and the broken JSON-pass-through API routes deleted.
+- TDD: client test cases written first (RED), implementation made them pass
+  (GREEN). Errors at the API boundary surface as `CepidClientError` with the
+  server's `code` (e.g. `MEMORY_SUBSTRATE_UNAVAILABLE`).
+- Deferred: relationship-graph view (memory.md "post-hackathon"); per-agent
+  memory explorer; more detailed influence pages. None block the demo.
 
-## Phase 9 — Developer surface
+## Phase 9 — Developer surface [NEXT]
 
-Registration flow (key shown once); docs/api.md, agents.md, integration
-example; external-agent walkthrough.
+Registration flow: **done** (form posts to a server proxy that forwards to
+`/v1/agents/register`; the key is shown once and never stored). Remaining:
+`docs/api.md`, `docs/agents.md`, `docs/integration.md`; the external-agent
+walkthrough. Acceptance: an external developer registers an agent and makes
+a real `cepid.retrieve()` call using only the docs.
 
 ## Phase 10 — End-to-end demo
 
