@@ -67,6 +67,8 @@ export interface OutcomeInput {
     marketOutcome?: string;
     tradeOutcome?: string;
     evidence?: { chain?: string; txHash?: string; blockNumber?: number };
+    /** ISO 8601. Optional — the platform defaults to now if absent. */
+    observedAt?: string;
   };
 }
 
@@ -80,7 +82,7 @@ export interface RecordExperienceInput {
     memoryIds?: string[];
     reasoning?: string[];
   };
-  outcome: OutcomeInput['outcome'];
+  outcome: OutcomeInput['outcome'] & { observedAt?: string };
   source?: string;
   decisionId?: string;
 }

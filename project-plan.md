@@ -116,13 +116,24 @@ SDK buyer loop; Usage rows on settled payments.
 - Deferred: relationship-graph view (memory.md "post-hackathon"); per-agent
   memory explorer; more detailed influence pages. None block the demo.
 
-## Phase 9 — Developer surface [NEXT]
+## Phase 9 — Developer surface [DONE]
 
-Registration flow: **done** (form posts to a server proxy that forwards to
-`/v1/agents/register`; the key is shown once and never stored). Remaining:
-`docs/api.md`, `docs/agents.md`, `docs/integration.md`; the external-agent
-walkthrough. Acceptance: an external developer registers an agent and makes
-a real `cepid.retrieve()` call using only the docs.
+- `docs/README.md` — index, product paragraph, the non-negotiables.
+- `docs/agents.md` — identity, registration, keys, isolation.
+- `docs/api.md` — every public route, request/response shapes, error
+  codes, the x402 boundary, and the substrate-down contract.
+- `docs/integration.md` — first-call walkthrough with `@cepid/client`:
+  register → retrieve → reason → recordDecision → recordOutcome, plus
+  the x402 payer flow.
+- Doc-test: `sdk/test/docs-contract.test.ts` — 7 tests that fail if any
+  documented shape, route, or error code drifts from the live SDK.
+  Tests assert the same fake fetch contract as the UI client tests.
+- SDK package gained a `test` script and a `tsx` devDependency.
+- README points at `docs/`.
+
+The acceptance test: a stranger can `npm install @cepid/client`,
+follow `docs/integration.md`, register an agent, and make a real
+`cepid.retrieve()` call against a live API.
 
 ## Phase 10 — End-to-end demo
 

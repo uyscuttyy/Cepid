@@ -73,6 +73,10 @@ Full setup, API reference, and the demo walkthrough: [`docs/`](docs/) and
 
 ## Documentation
 
+- [`docs/`](docs/) — public surface for external developers
+  - [`docs/agents.md`](docs/agents.md) — identity, registration, keys, isolation
+  - [`docs/api.md`](docs/api.md) — every public route, request/response shapes, error codes
+  - [`docs/integration.md`](docs/integration.md) — first-call walkthrough with `@cepid/client`
 - [`architecture.md`](architecture.md) — the restructure plan, boundaries, schema, phases (source of truth)
 - [`prd.md`](prd.md) — product requirements
 - [`project-plan.md`](project-plan.md) — phase log and progress

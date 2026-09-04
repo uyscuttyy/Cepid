@@ -85,11 +85,8 @@ Env: `CEPID_MEMORY_DB` (sidecar DB), `SIDECAR_TOKEN`, `SIDECAR_PORT`,
 
 ## Next steps
 
-1. **Phase 9** — `docs/api.md`, `docs/agents.md`, `docs/integration.md`,
-   and the external-agent walkthrough. The registration flow is already
-   done; the docs are the gap.
-2. Phase 10 — two-run demo per architecture §15 against the live stack.
-3. Submission — README, 2–5 min demo video, two build-in-public posts.
+1. Phase 10 — two-run demo per architecture §15 against the live stack.
+2. Submission — README, 2–5 min demo video, two build-in-public posts.
 
 ## Known limitations (carried)
 
