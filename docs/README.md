@@ -11,6 +11,9 @@ is no fallback.
   isolation work, how keys are issued and revoked. Read this first.
 - **[`api.md`](api.md)** — every public route, the request and response
   shape, and the error codes a client can encounter.
+- **[`constraint-gate.md`](constraint-gate.md)** — the deterministic
+  ALLOW/DENY layer: blocking criteria, thresholds, agent obligations,
+  and the two-run demo proof.
 - **[`integration.md`](integration.md)** — install `@cepid/client`, make
   the first `cepid.retrieve()` call, and pay the $0.01 x402 fee on
   retrieval. The end-to-end flow from a stranger's machine.

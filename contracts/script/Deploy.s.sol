@@ -17,6 +17,8 @@ import {CepidTestMarket} from "../src/CepidTestMarket.sol";
  *   DEPLOY_RESOLVER    — address allowed to call resolve() after expiry
  *                        (the demo runner wallet)
  *   DEPLOYER_KEY       — funded throwaway deployer key (env only)
+ *   DEPLOY_RESERVE     — virtual AMM reserve per side, 6dp (default
+ *                        1000000000 = 1000 USDC deep; demo: 20000000)
  *
  * Usage:
  *   forge script script/Deploy.s.sol --rpc-url base-sepolia \
@@ -34,6 +36,7 @@ contract DeployMarket is Script {
         uint256 duration = vm.envUint("DEPLOY_DURATION");
         uint256 minShares = vm.envUint("DEPLOY_MIN_SHARES");
         address resolver = vm.envAddress("DEPLOY_RESOLVER");
+        uint256 virtualReserve = vm.envOr("DEPLOY_RESERVE", uint256(1000e6));
 
         vm.startBroadcast(deployerKey);
         market = new CepidTestMarket(
@@ -42,7 +45,8 @@ contract DeployMarket is Script {
             timeframe,
             duration,
             minShares,
-            resolver
+            resolver,
+            virtualReserve
         );
         vm.stopBroadcast();
 

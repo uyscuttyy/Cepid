@@ -1,3 +1,5 @@
+import Link from 'next/link';
+import type { ReactNode } from 'react';
 import { Band, EmptyState, Metric, Metrics, Notice, PageHead } from '@/components/Primitives';
 import { getClient } from '@/lib/data';
 import { CepidClientError } from '@/lib/cepid';
@@ -129,11 +131,48 @@ export default async function ActivityPage() {
   );
 }
 
-function summarise(ev: AgentEvent): string {
+function summarise(ev: AgentEvent): ReactNode {
+  if (ev.type === 'gate.denied') {
+    const ids = Array.isArray(ev.blockingMemoryIds) ? ev.blockingMemoryIds as string[] : [];
+    return (
+      <>
+        <span className="chip chip--neg">DENY</span>{' '}
+        {String(ev.reason ?? 'blocked by memory')}
+        {ids.length > 0 && (
+          <> · blocking: {ids.map((id, i) => (
+            <span key={id}>
+              {i > 0 && ', '}
+              <Link className="link mono" href={`/memories/${id}`}>{short(id)}</Link>
+            </span>
+          ))}</>
+        )}
+      </>
+    );
+  }
+  if (ev.type === 'decision.recorded') {
+    const verdict = String(ev.gateVerdict ?? 'ALLOW');
+    const used = Array.isArray(ev.usedMemoryIds) ? ev.usedMemoryIds as string[] : [];
+    return (
+      <>
+        decision {short(String(ev.decisionId))} → {String(ev.action ?? '?')}{' '}
+        <span className={`chip chip--${verdict === 'DENY' ? 'neg' : 'quiet'}`}>{verdict}</span>
+        {used.length > 0 && (
+          <> · used: {used.slice(0, 4).map((id, i) => (
+            <span key={id}>
+              {i > 0 && ', '}
+              <Link className="link mono" href={`/memories/${id}`}>{short(id)}</Link>
+            </span>
+          ))}{used.length > 4 && ` +${used.length - 4} more`}</>
+        )}
+      </>
+    );
+  }
   const known: Record<string, string> = {
     'memory.retrieved': `retrieval ${short(String(ev.retrievalId))} returned ${String(ev.returned ?? '?')}`,
-    'decision.recorded': `decision ${short(String(ev.decisionId))} → ${String(ev.action ?? '?')}`,
     'outcome.recorded': `outcome for ${short(String(ev.decisionId))} = ${String(ev.result ?? '?')}`,
+    'memory.settled': `memory ${short(String(ev.memoryId))} settled = ${String(ev.result ?? '?')}`,
+    'memory.validated': `validated decision ${short(String(ev.decisionId))}: ${String(ev.reinforced ?? 0)} reinforced, ${String(ev.weakened ?? 0)} weakened`,
+    'memory.created': `memory ${short(String(ev.memoryId))} created`,
     'usage.settled': `${String(ev.route ?? '?')} settled ${String(ev.price ?? '?')}${ev.txHash ? ` · tx ${short(String(ev.txHash))}` : ''}`,
     'agent.registered': `name: ${String(ev.name ?? '?')}`,
     'agent.revoked': `id: ${short(String(ev.agentId ?? '?'))}`,

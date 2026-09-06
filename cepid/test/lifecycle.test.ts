@@ -274,3 +274,55 @@ test('lifecycle: unaided decisions (no retrieval) are not validated — no chain
     );
   });
 });
+
+test('lifecycle: late outcome backfills the PENDING experience so scars can form', async () => {
+  await withLifecycleStack(async ({ baseUrl, repo, key, agentId }) => {
+    // 1) Retrieve (empty) → decision → experience with PENDING outcome,
+    //    exactly as the live agent does when the market hasn't settled.
+    const q = await fetch(`${baseUrl}/v1/memories/query`, {
+      method: 'POST', headers: H(key),
+      body: JSON.stringify({ situation }),
+    });
+    const { retrievalId } = (await q.json()) as { retrievalId: string };
+    const dec = await fetch(`${baseUrl}/v1/decisions`, {
+      method: 'POST', headers: H(key),
+      body: JSON.stringify({
+        retrievalId, memoryIds: [],
+        situation, action: 'LONG',
+        confidenceBase: 0.6, confidenceFinal: 0.6, reasoning: ['first encounter'],
+      }),
+    });
+    const { decision } = (await dec.json()) as { decision: { id: string } };
+    const exp = await fetch(`${baseUrl}/v1/memories`, {
+      method: 'POST', headers: H(key),
+      body: JSON.stringify({
+        situation,
+        decision: { action: 'LONG', confidenceBase: 0.6, confidenceFinal: 0.6, memoryInfluence: 0, memoryIds: [], reasoning: [] },
+        outcome: { result: 'PENDING', valence: 'neutral', metrics: {} },
+        source: 'lifecycle-test',
+        decisionId: decision.id,
+      }),
+    });
+    const { memory } = (await exp.json()) as { memory: { id: string } };
+
+    // 2) Late outcome arrives with a real LOSS.
+    const out = await fetch(`${baseUrl}/v1/outcomes`, {
+      method: 'POST', headers: H(key),
+      body: JSON.stringify({
+        decisionId: decision.id,
+        outcome: { result: 'LOSS', valence: 'bad', magnitude: -1, metrics: {}, marketOutcome: 'NO_WON', tradeOutcome: 'LOSS' },
+      }),
+    });
+    assert.equal(out.status, 201);
+
+    // 3) The experience row now carries the settled outcome.
+    const settled = await repo.getMemory(agentId, memory.id);
+    assert.ok(settled, 'experience still exists');
+    assert.equal(settled!.outcome?.result, 'LOSS', 'PENDING backfilled with the late LOSS');
+    assert.equal(settled!.outcome?.valence, 'bad');
+
+    // 4) A settled-only view of the journal shows the settle event.
+    const events = await repo.listEvents(agentId, { limit: 50 });
+    assert.ok(events.some((e) => e.type === 'memory.settled'), 'memory.settled event recorded');
+  });
+});

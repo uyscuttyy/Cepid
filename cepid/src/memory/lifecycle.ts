@@ -122,6 +122,32 @@ export async function validateAndAdjust(
     }
   }
 
+  // Backfill: the experience recorded alongside this decision may still
+  // carry a PENDING (or missing) outcome — the decision was recorded
+  // before the market settled. The late outcome completes it. Only
+  // PENDING/missing outcomes are ever overwritten; settled rows are
+  // never touched.
+  const experiences = await repo.listMemories(agentId);
+  for (const exp of experiences) {
+    if (exp.kind !== 'experience') continue;
+    if (exp.decisionId !== decision.id) continue;
+    const pending = !exp.outcome || exp.outcome.result === 'PENDING';
+    if (!pending) continue;
+    await repo.putMemory(agentId, {
+      ...exp,
+      outcome: outcome.outcome,
+      updatedAt: new Date().toISOString(),
+    });
+    await repo.appendEvent(agentId, {
+      type: 'memory.settled',
+      at: new Date().toISOString(),
+      memoryId: exp.id,
+      decisionId: decision.id,
+      result: outcome.outcome.result,
+      valence: outcome.outcome.valence,
+    });
+  }
+
   // Structure re-derives after every outcome: patterns and scars reflect
   // the latest evidence.
   await linkPatterns(repo, agentId);

@@ -71,6 +71,10 @@ export interface RunResult {
   retrievalId: string | null;
   retrieved: RetrievedMemoryView[];
   state: ExecutionState;
+  /** Constraint-gate verdict from CEPID. DENY means the agent was blocked. */
+  gateVerdict: 'ALLOW' | 'DENY';
+  gateReason: string;
+  gateBlockingMemoryIds: string[];
 }
 
 export async function runOnce(opts: OrchestratorOptions): Promise<RunResult> {
@@ -105,15 +109,47 @@ export async function runOnce(opts: OrchestratorOptions): Promise<RunResult> {
   const considering = baseIntent.direction;
 
   // 3) Ask CEPID for relevant memories — over HTTP, like everyone else.
+  // The response carries the constraint-gate verdict. DENY is binding:
+  // the agent must not trade, sign, or touch the market.
   const situation: Situation = toSituation(conditions, considering);
   const retrieval = await cepid.retrieve({ situation });
+  const gateVerdict = retrieval.verdict ?? 'ALLOW';
+  const gateReason = retrieval.reason ?? '';
+  const gateBlockingMemoryIds = retrieval.blockingMemoryIds ?? [];
 
   // 4) Reason over the returned memories — agent-side decision logic.
+  // On DENY the gate overrides: intent is forced to NO_TRADE regardless
+  // of what the agent-side engine concludes.
   const engine = new MemoryInformedDecisionEngine({
     strategy: baseStrategy,
     retrieved: retrieval.memories,
   });
-  const { intent, decision } = engine.decide(market, book, conditions, considering);
+  const decided = engine.decide(market, book, conditions, considering);
+  const intent: TradeIntent = gateVerdict === 'DENY'
+    ? {
+        marketId: market.id,
+        direction: 'NO_TRADE',
+        shares: 0,
+        price: decided.intent.price,
+        baseConfidence: decided.intent.baseConfidence,
+        reason: `BLOCKED BY MEMORY — ${gateReason}`,
+        createdAt: new Date().toISOString(),
+      }
+    : decided.intent;
+  const decision: DecisionContext = gateVerdict === 'DENY'
+    ? {
+        decision: 'NO_TRADE',
+        baseConfidence: decided.decision.baseConfidence,
+        memoryInfluence: decided.decision.memoryInfluence,
+        finalConfidence: 0,
+        memoryIds: gateBlockingMemoryIds,
+        reasoning: [
+          `Constraint gate returned DENY: ${gateReason}`,
+          `Blocking memories: ${gateBlockingMemoryIds.join(', ') || 'none'}`,
+          ...decided.decision.reasoning,
+        ],
+      }
+    : decided.decision;
 
   // 5) Risk gate — never bypassed by memory.
   const risk = evaluateRisk(intent, market, session, config);
@@ -126,8 +162,15 @@ export async function runOnce(opts: OrchestratorOptions): Promise<RunResult> {
   // 6) Execute or preview — ONLY the market action is risk-gated. The
   // decision and its influence chain are recorded for EVERY decided path,
   // including memory vetoes: the veto IS the product's story.
+  //
+  // A gate DENY short-circuits everything market-facing: no risk eval
+  // bypass issue, no placeOrder, no getResolution. The blocked decision
+  // is still recorded below with the gate's evidence.
   let recordedDecisionId: string | null = null;
-  if (!risk.approved) {
+  if (gateVerdict === 'DENY') {
+    state = 'REJECTED';
+    session.decisions++;
+  } else if (!risk.approved) {
     state = 'REJECTED';
     session.decisions++;
   } else {
@@ -274,6 +317,7 @@ export async function runOnce(opts: OrchestratorOptions): Promise<RunResult> {
     retrievalId: retrieval.retrievalId,
     retrieved: retrieval.memories,
     state,
+    gateVerdict, gateReason, gateBlockingMemoryIds,
   };
 }
 

@@ -171,6 +171,33 @@ test('RETRIEVAL_NOT_FOUND is the documented 404 code when the retrievalId is not
   );
 });
 
+test('retrieve() returns the gate verdict fields alongside memories', async () => {
+  const fake = makeFakeFetch([
+    {
+      status: 200,
+      body: {
+        retrievalId: 'ret-1',
+        memories: [],
+        verdict: 'ALLOW',
+        reason: 'no memories retrieved',
+        usedMemoryIds: [],
+        blockingMemoryIds: [],
+        blockedBy: 'none',
+        matchedSignature: null,
+      },
+    },
+  ]);
+  const c = new CepidClient({ baseUrl: BASE, apiKey: 'cepid_test' });
+  const r = await fake.install(() => c.retrieve({ situation: { domain: 'x', text: 'y', facets: {} } }));
+  assert.equal(r.retrievalId, 'ret-1');
+  assert.equal(r.verdict, 'ALLOW');
+  assert.equal(r.reason, 'no memories retrieved');
+  assert.deepEqual(r.usedMemoryIds, []);
+  assert.deepEqual(r.blockingMemoryIds, []);
+  assert.equal(r.blockedBy, 'none');
+  assert.equal(r.matchedSignature, null);
+});
+
 test('x402 PAYMENT-REQUIRED surfaces as 402 CepidError on retrieve()', async () => {
   const fake = makeFakeFetch([
     { status: 402, body: { error: 'PAYMENT-REQUIRED', message: 'unpaid' } },

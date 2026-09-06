@@ -115,15 +115,35 @@ The defining flow. Your agent asks CEPID for similar past
 experiences, decides, and reports what happened.
 
 ```ts
-// 5a — retrieve (this is the x402-gated route)
-const { retrievalId, memories } = await cepid.retrieve({
-  situation: {
-    domain: 'support',
-    text: 'user asked for a refund on a free-tier charge',
-    facets: { tier: 'free', region: 'eu', amount_usdc: 12 },
-  },
-  limit: 10,
-});
+// 5a — retrieve (this is the x402-gated route). The response carries
+// the constraint gate's verdict: ALLOW means proceed, DENY means the
+// agent must NOT act. Read it first, before reasoning.
+const { retrievalId, memories, verdict, reason, blockingMemoryIds } =
+  await cepid.retrieve({
+    situation: {
+      domain: 'support',
+      text: 'user asked for a refund on a free-tier charge',
+      facets: { tier: 'free', region: 'eu', amount_usdc: 12 },
+    },
+    limit: 10,
+  });
+
+if (verdict === 'DENY') {
+  // Memory has spoken: a prior failure blocks this action. Record the
+  // blocked decision (NO_TRADE) with the retrieval edge so the chain
+  // stays inspectable — and take no further action.
+  await cepid.recordDecision({
+    retrievalId,
+    memoryIds: blockingMemoryIds,
+    situation: { /* same shape */ },
+    action: 'NO_TRADE',
+    confidenceBase: 0.5,
+    confidenceFinal: 0,
+    memoryInfluence: -0.5,
+    reasoning: [`Constraint gate returned DENY: ${reason}`],
+  });
+  return; // no trade, no transaction, no market interaction
+}
 
 // 5b — reason over what was returned. The agent owns this step.
 // For this example, imagine memories contains one prior loss

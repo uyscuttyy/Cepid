@@ -38,6 +38,41 @@ export default async function MemoryDetailPage({ params }: { params: Promise<{ i
     }
   }
 
+  // Decisions that cite this memory — the influence chain, read from the
+  // journal. decision.recorded carries usedMemoryIds; gate.denied carries
+  // blockingMemoryIds. Both are server-written, never client-claimed.
+  let citingDecisions: Array<{
+    decisionId: string; action: string; verdict: string; at: string; retrievalId: string | null;
+  }> = [];
+  let blockedBy: Array<{ retrievalId: string; reason: string; at: string }> = [];
+  if (memory) {
+    try {
+      const act = await client.getActivity('self');
+      for (const e of act.events) {
+        const used = Array.isArray(e.usedMemoryIds) ? (e.usedMemoryIds as string[]) : [];
+        if (e.type === 'decision.recorded' && used.includes(id)) {
+          citingDecisions.push({
+            decisionId: String(e.decisionId ?? '?'),
+            action: String(e.action ?? '?'),
+            verdict: String(e.gateVerdict ?? 'ALLOW'),
+            at: String(e.at ?? ''),
+            retrievalId: typeof e.retrievalId === 'string' ? e.retrievalId : null,
+          });
+        }
+        const blocking = Array.isArray(e.blockingMemoryIds) ? (e.blockingMemoryIds as string[]) : [];
+        if (e.type === 'gate.denied' && blocking.includes(id)) {
+          blockedBy.push({
+            retrievalId: String(e.retrievalId ?? '?'),
+            reason: String(e.reason ?? ''),
+            at: String(e.at ?? ''),
+          });
+        }
+      }
+    } catch {
+      // Activity unavailable — the memory itself is still showable.
+    }
+  }
+
   if (!memory) {
     return (
       <div className="page">
@@ -195,6 +230,50 @@ export default async function MemoryDetailPage({ params }: { params: Promise<{ i
           </Panel>
         </Band>
       )}
+
+      <Band title="Influence" hint="decisions this memory participated in">
+        {citingDecisions.length === 0 && blockedBy.length === 0 ? (
+          <Panel tone="thin">
+            <p className="prose" style={{ fontSize: 'var(--fs-small)' }}>
+              No decision has cited this memory yet. When an agent retrieves it
+              and records a decision against that retrieval, the decision
+              appears here with its verdict.
+            </p>
+          </Panel>
+        ) : (
+          <div className="stack">
+            {citingDecisions.map((d) => (
+              <div className="row" key={d.decisionId}>
+                <span className="row__lead">{shortId(d.decisionId)}</span>
+                <span className="row__main">
+                  <span className="row__title">
+                    {d.action}{' '}
+                    <Chip tone={d.verdict === 'DENY' ? 'neg' : 'quiet'}>{d.verdict}</Chip>
+                  </span>
+                  <span className="row__sub mono">retrieval {shortId(d.retrievalId)}</span>
+                </span>
+                <span className="row__trail">
+                  <span style={{ color: 'var(--text-3)' }}>{formatRelative(d.at)}</span>
+                </span>
+              </div>
+            ))}
+            {blockedBy.map((b, i) => (
+              <div className="row" key={`${b.retrievalId}-${i}`}>
+                <span className="row__lead">⛔</span>
+                <span className="row__main">
+                  <span className="row__title">
+                    Blocked a trade <Chip tone="neg">DENY</Chip>
+                  </span>
+                  <span className="row__sub">{b.reason}</span>
+                </span>
+                <span className="row__trail">
+                  <span style={{ color: 'var(--text-3)' }}>{formatRelative(b.at)}</span>
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </Band>
 
       <Band title="Lifecycle" tight>
         <Panel tone="thin">

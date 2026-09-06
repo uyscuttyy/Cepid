@@ -66,7 +66,8 @@ contract CepidTestMarket is Ownable {
         string memory _timeframe,
         uint256 _durationSeconds,
         uint256 _minShares,
-        address _resolver
+        address _resolver,
+        uint256 _virtualReserve
     ) Ownable(_resolver) {
         usdc = IERC20(_usdc);
         asset = _asset;
@@ -74,8 +75,10 @@ contract CepidTestMarket is Ownable {
         expiresAt = block.timestamp + _durationSeconds;
         minShares = _minShares;
         // Seed reserves so YES and NO both price near 0.5 at deployment.
-        virtualYesReserve = 1000e6;
-        virtualNoReserve = 1000e6;
+        // Depth is deploy-time: deep (1000e6) for stability, shallow for
+        // demo markets where retail-size trades must move the price.
+        virtualYesReserve = _virtualReserve;
+        virtualNoReserve = _virtualReserve;
     }
 
     function yesPrice() public view returns (uint256) {
@@ -120,17 +123,16 @@ contract CepidTestMarket is Ownable {
     }
 
     function _quoteYes(uint256 shares) internal view returns (uint256) {
-        // integral of constant-product curve, in USDC 6 decimals
-        uint256 k = virtualYesReserve * virtualNoReserve;
+        // Constant-product cost of removing `shares` NO liquidity:
+        // cost = yes * shares / (no - shares). Slightly above face value
+        // (slippage grows as the NO side thins).
         uint256 newNoReserve = virtualNoReserve - shares;
-        return ((virtualYesReserve * 1e6) / newNoReserve) - ((k * 1e6) / (newNoReserve * newNoReserve));
-        // simplified approximation: cost ≈ shares * (2 * yesPrice + spread)
+        return (virtualYesReserve * shares) / newNoReserve;
     }
 
     function _quoteNo(uint256 shares) internal view returns (uint256) {
-        uint256 k = virtualYesReserve * virtualNoReserve;
         uint256 newYesReserve = virtualYesReserve - shares;
-        return ((virtualNoReserve * 1e6) / newYesReserve) - ((k * 1e6) / (newYesReserve * newYesReserve));
+        return (virtualNoReserve * shares) / newYesReserve;
     }
 
     function resolve(bool _outcomeYes) external onlyOwner {

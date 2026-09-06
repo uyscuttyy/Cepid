@@ -104,6 +104,7 @@ export async function evaluateAndStore(
     retrievedCount: 0,
     lastRetrievedAt: null,
     source: input.source,
+    decisionId: input.decisionId,
     relationships: [],
     createdAt: now,
     updatedAt: now,

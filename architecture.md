@@ -304,7 +304,8 @@ product's core function is gone.
 ## 8. Memory lifecycle (the missing half, implemented)
 
 ```
-retrieved ──▶ used in a decision ──▶ outcome observed ──▶ validated ──▶ reinforced | decayed
+retrieved ──▶ gate (ALLOW | DENY) ──▶ used in a decision ──▶ outcome observed
+  ──▶ validated ──▶ reinforced | decayed ──▶ backfilled ──▶ patterns/scars re-derived
 ```
 
 1. **Retrieval rows.** Every `POST /v1/memories/query` that actually feeds a
@@ -314,12 +315,21 @@ retrieved ──▶ used in a decision ──▶ outcome observed ──▶ vali
 2. **Ranking** (kept + extended): FTS rank (Sibyl) × facet similarity (profile
    weights) × importance × strength × recency × `log(1+retrievedCount)` × scar
    boost (0.15) × pattern boost (0.10) — deterministic, documented, tested.
-3. **Outcome validation.** On `POST /v1/outcomes`, CEPID walks the decision's
+3. **Constraint gate.** After ranking, `evaluateGate()` returns a
+   machine-checkable `ALLOW` | `DENY` with reason, used ids, and blocking
+   ids (see `docs/constraint-gate.md`). The verdict rides the retrieval
+   row and the response. DENY appends a `gate.denied` journal event.
+4. **Outcome validation.** On `POST /v1/outcomes`, CEPID walks the decision's
    `retrievalId` → the memories that were used → for each, did it help or
    mislead? (Aligned-with-result ⇒ reinforce +0.05; contradicted ⇒ weaken
    −0.03; scars decay at 0.25× as before.)
-4. **Decay** stays deterministic: 1%/hr, floor 0.05, no deletion (audit trail).
-5. **Patterns/scars** recompute after every stored outcome (generalized linker).
+5. **Outcome backfill.** A late outcome completes the PENDING experience
+   recorded alongside its decision (matched by `decisionId` on the row,
+   journal `memory.created` fallback for older rows). Settled rows are
+   never overwritten. A `memory.settled` event marks the completion.
+6. **Decay** stays deterministic: 1%/hr, floor 0.05, no deletion (audit trail).
+7. **Patterns/scars** recompute after every stored outcome (generalized linker),
+   now over backfilled reality instead of PENDING placeholders.
 
 `reinforce()` is called by the outcome path — the unused-function bug dies.
 

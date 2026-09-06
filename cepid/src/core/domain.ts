@@ -81,6 +81,10 @@ export interface MemoryRecord {
   lastRetrievedAt: string | null;
   /** Which run/source produced this memory. */
   source: string;
+  /** The decision this experience records, when recorded alongside one.
+   * Lets a late-arriving outcome (recordOutcome) backfill the experience
+   * row so patterns and scars reflect settled reality, not PENDING. */
+  decisionId: string | null;
   relationships: MemoryEdge[];
   createdAt: string;
   updatedAt: string;
@@ -177,6 +181,10 @@ export interface RetrievalRecord {
   /** Scores at retrieval time — the audit snapshot. */
   ranking: Array<{ memoryId: string; similarity: number; retrievalScore: number }>;
   occurredAt: string;
+  /** Constraint-gate verdict computed at retrieval time — the audit snapshot. */
+  gateVerdict: 'ALLOW' | 'DENY';
+  gateReason: string;
+  gateBlockingMemoryIds: string[];
 }
 
 /** What the agent decided after (possibly) consulting memory. */

@@ -80,6 +80,8 @@ export interface MemoryRecord {
   relationships: MemoryEdge[];
   createdAt: string;
   updatedAt: string;
+  /** The decision this experience was recorded alongside (null for older rows). */
+  decisionId?: string | null;
 }
 
 export interface PatternRecord {

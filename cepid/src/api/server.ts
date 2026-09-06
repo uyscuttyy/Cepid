@@ -46,6 +46,7 @@ import { updateScars } from '../memory/scars.js';
 import { validateAndAdjust } from '../memory/lifecycle.js';
 import { runDecay } from '../memory/decay.js';
 import { createPaywall, checkPayment, type X402Paywall, type PaymentCheckResult } from './x402.js';
+import { evaluateGate } from '../memory/constraint-gate.js';
 
 export interface ApiDeps {
   repo: MemoryRepository;
@@ -201,10 +202,23 @@ export class CepidApi {
     // Deterministic decay tick — memories fade between sessions unless
     // reinforced by outcomes (the full lifecycle).
     await runDecay(this.repo, agentId).catch(() => undefined);
-    const hits = await retrieveMemories(this.repo, agentId, situation, { limit, minSimilarity });
+    const [hits, patterns, scars] = await Promise.all([
+      retrieveMemories(this.repo, agentId, situation, { limit, minSimilarity }),
+      this.repo.listPatterns(agentId),
+      this.repo.listScars(agentId),
+    ]);
+
+    // THE CONSTRAINT GATE — deterministic ALLOW/DENY based on retrieved
+    // evidence and the agent's pattern/scar history. The agent's decision
+    // is downstream of this verdict: DENY means no trade, no signed tx,
+    // and a recorded BLOCKED decision. The verdict is machine-checkable
+    // and reproducible for the same inputs.
+    const gate = evaluateGate({ situation, retrieved: hits, patterns, scars });
 
     // THE INFLUENCE EDGE: this retrieval is recorded so the decision that
     // uses it can reference it. Real rows, real counts — nothing inferred.
+    // The gate verdict rides on the row so recordDecision can surface it
+    // without trusting the client.
     const retrieval: RetrievalRecord = {
       id: `ret-${randomUUID().slice(0, 12)}`,
       agentId,
@@ -216,6 +230,9 @@ export class CepidApi {
         retrievalScore: h.retrievalScore,
       })),
       occurredAt: new Date().toISOString(),
+      gateVerdict: gate.verdict,
+      gateReason: gate.reason,
+      gateBlockingMemoryIds: gate.blockingMemoryIds,
     };
     await this.repo.putRetrieval(agentId, retrieval);
     await this.repo.appendEvent(agentId, {
@@ -225,6 +242,17 @@ export class CepidApi {
       query: situation.text,
       returned: hits.length,
     });
+    if (gate.verdict === 'DENY') {
+      await this.repo.appendEvent(agentId, {
+        type: 'gate.denied',
+        at: retrieval.occurredAt,
+        retrievalId: retrieval.id,
+        reason: gate.reason,
+        blockedBy: gate.blockedBy,
+        blockingMemoryIds: gate.blockingMemoryIds,
+        matchedSignature: gate.matchedSignature,
+      });
+    }
     return {
       retrievalId: retrieval.id,
       memories: hits.map((h) => ({
@@ -242,6 +270,12 @@ export class CepidApi {
         isPattern: h.isPattern,
         retrievalScore: h.retrievalScore,
       })),
+      verdict: gate.verdict,
+      reason: gate.reason,
+      usedMemoryIds: gate.usedMemoryIds,
+      blockingMemoryIds: gate.blockingMemoryIds,
+      blockedBy: gate.blockedBy,
+      matchedSignature: gate.matchedSignature,
     };
   }
 
@@ -271,6 +305,9 @@ export class CepidApi {
     // must actually have returned the memories they claim to have used.
     let usedMemoryIds: string[] = [];
     let retrievalId: string | null = null;
+    let gateVerdict: 'ALLOW' | 'DENY' = 'ALLOW';
+    let gateReason = '';
+    let gateBlockingMemoryIds: string[] = [];
     if (body.retrievalId) {
       retrievalId = String(body.retrievalId);
       const retrieval = await this.repo.getRetrieval(agentId, retrievalId);
@@ -289,6 +326,12 @@ export class CepidApi {
       if (usedMemoryIds.length > 0) {
         await markMemoryUsed(this.repo, agentId, usedMemoryIds);
       }
+      // The gate verdict rides on the retrieval row (written at query
+      // time) — never trusted from the client. Old rows predate the
+      // gate and default to ALLOW.
+      gateVerdict = retrieval.gateVerdict ?? 'ALLOW';
+      gateReason = retrieval.gateReason ?? '';
+      gateBlockingMemoryIds = retrieval.gateBlockingMemoryIds ?? [];
     }
 
     const decision: DecisionRecord = {
@@ -311,8 +354,12 @@ export class CepidApi {
       action: decision.action,
       retrievalId,
       usedMemories: usedMemoryIds.length,
+      usedMemoryIds,
+      gateVerdict,
+      gateReason,
+      gateBlockingMemoryIds,
     });
-    return this.json(res, 201, { decision, usedMemoryIds });
+    return this.json(res, 201, { decision, usedMemoryIds, gateVerdict, gateReason, gateBlockingMemoryIds });
   }
 
   private async recordOutcome(res: ServerResponse, agentId: string, body: Record<string, unknown>) {
@@ -342,6 +389,46 @@ export class CepidApi {
       tradeOutcome: outcome.tradeOutcome ?? null,
       evidence: outcome.evidence ?? null,
     });
+
+    // Backfill via the journal for experiences written before the
+    // decisionId field existed on the row: memory.created events carry
+    // {memoryId, decisionId}. PENDING-only, idempotent.
+    try {
+      const journal = await this.repo.listEvents(agentId, { limit: 200 });
+      const linkedIds: string[] = [];
+      for (const e of journal) {
+        if (e.type !== 'memory.created') continue;
+        if ((e.decisionId as string | undefined) !== decisionId) continue;
+        if (typeof e.memoryId === 'string') linkedIds.push(e.memoryId);
+      }
+      for (const mid of linkedIds) {
+        const exp = await this.repo.getMemory(agentId, mid);
+        if (!exp || exp.kind !== 'experience') continue;
+        const pending = !exp.outcome || exp.outcome.result === 'PENDING';
+        if (!pending) continue;
+        await this.repo.putMemory(agentId, {
+          ...exp,
+          decisionId: decisionId,
+          outcome: outcome,
+          updatedAt: new Date().toISOString(),
+        });
+        // Same memory.settled event validateAndAdjust emits: whichever
+        // backfill path settles the row, the journal shows it. The
+        // PENDING-only guard above keeps this idempotent — the second
+        // path finds settled rows and stays silent.
+        await this.repo.appendEvent(agentId, {
+          type: 'memory.settled',
+          at: new Date().toISOString(),
+          memoryId: mid,
+          decisionId: decisionId,
+          result: outcome.result,
+          valence: outcome.valence,
+        });
+      }
+    } catch {
+      // Journal backfill is best-effort; the field-based path in
+      // validateAndAdjust covers new rows regardless.
+    }
 
     // THE LIFECYCLE LOOP: the outcome validates the memories the decision
     // actually used (decision → retrieval → cited memories), reinforcing the

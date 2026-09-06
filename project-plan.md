@@ -135,10 +135,34 @@ The acceptance test: a stranger can `npm install @cepid/client`,
 follow `docs/integration.md`, register an agent, and make a real
 `cepid.retrieve()` call against a live API.
 
-## Phase 10 — End-to-end demo
+## Phase 10 — End-to-end demo [DONE 06-SEP-26]
 
-Two-run demo per architecture.md §15 against the live stack; final test
-matrix; handoff.md final state.
+Two-run constraint-gate demo against the live stack (sidecar + API +
+Base Sepolia), per the gate directive:
+
+- Constraint gate (`cepid/src/memory/constraint-gate.ts`): deterministic
+  ALLOW/DENY over retrieved evidence + patterns + scars. 11 unit tests.
+  Verdict rides the retrieve response, the retrieval row, the
+  `decision.recorded` event/response, and a `gate.denied` journal event.
+- Outcome backfill: late outcomes complete PENDING experiences
+  (`decisionId` link + journal fallback), so patterns/scars form from
+  settled reality. New lifecycle test pins it.
+- Demo agent obeys DENY: intent forced NO_TRADE, market untouched, blocked
+  decision recorded. 2 full-stack obedience tests.
+- Run 1 (3 legs, fresh agent): gate ALLOW ×3 → 3 YES buys on
+  CepidTestMarket with real txHashes → market resolved NO on-chain →
+  3 LOSS outcomes with txHash evidence → pattern (bad 3, rate 1.0) →
+  scar (strength 0.7).
+- Run 2 (new process, same agent): retrieved the 3 losses → gate DENY
+  via scar → NO_TRADE, no transaction, blocked decision recorded.
+- UI: Activity renders DENY chips + blocking/use memory links;
+  memory detail has an Influence band (citing decisions + blocks).
+- Docs: `docs/constraint-gate.md`; api.md, integration.md,
+  architecture §8 updated.
+- Contract fixes found along the way: AMM quote math (was negative for
+  all inputs), parameterised virtual reserves, cast v1.8 script syntax.
+
+Acceptance (§15 + gate directive §23): all boxes checked — see handoff.
 
 ## Track (hackathon)
 

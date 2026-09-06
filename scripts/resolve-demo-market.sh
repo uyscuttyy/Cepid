@@ -16,7 +16,7 @@ OUTCOME="${1:-yes}"
 RPC="${CEPID_RPC_URL_BASE_SEPOLIA:-https://sepolia.base.org}"
 
 EXPIRY=$(cast call "$CEPID_TEST_MARKET_ADDRESS" "expiresAt()(uint256)" --rpc-url "$RPC" | cast to-dec)
-NOW=$(cast block timestamp --rpc-url "$RPC")
+NOW=$(cast block --field timestamp --rpc-url "$RPC")
 if [ "$NOW" -lt "$EXPIRY" ]; then
   echo "[resolve] market not expired yet ($((EXPIRY - NOW))s remaining)"; exit 1
 fi

@@ -116,9 +116,21 @@ Response (200):
       "isPattern":        false,
       "retrievalScore":   0.88
     }
-  ]
+  ],
+  "verdict": "ALLOW",
+  "reason": "no memories retrieved",
+  "usedMemoryIds": [],
+  "blockingMemoryIds": [],
+  "blockedBy": "none",
+  "matchedSignature": null
 }
 ```
+
+`verdict` is the constraint gate's machine-checkable decision
+(`ALLOW` | `DENY`). **On `DENY` the agent must not trade** — see
+[`constraint-gate.md`](constraint-gate.md). `blockingMemoryIds` are
+the memories that caused the block; `blockedBy` names the criterion
+(`scar` | `pattern` | `bad-experience` | `none`).
 
 Side effects: a `RetrievalRecord` is written to the agent's tenant
 (this is the influence edge that decisions reference), and a
@@ -184,7 +196,10 @@ Response (201):
 ```json
 {
   "decision":     { "id": "dec-…", "retrievalId": "ret-…", "...": "..." },
-  "usedMemoryIds": ["mem-…", "mem-…"]
+  "usedMemoryIds": ["mem-…", "mem-…"],
+  "gateVerdict": "ALLOW",
+  "gateReason": "...",
+  "gateBlockingMemoryIds": []
 }
 ```
 
@@ -252,7 +267,11 @@ patterns, scars. Used by the dashboard Memories page.
 ### `GET /v1/activity`
 
 The journal feed (most recent 100 events). Includes
-`memory.retrieved`, `decision.recorded`, `outcome.recorded`,
+`memory.retrieved`, `gate.denied` (on DENY, with reason and blocking
+ids), `decision.recorded` (with `usedMemoryIds`, `gateVerdict`,
+`gateReason`, `gateBlockingMemoryIds`), `outcome.recorded`,
+`memory.settled` (when a late outcome completes a PENDING experience),
+`memory.validated`,
 `usage.settled`, `agent.registered`, `agent.revoked`, and the
 registration-time row.
 

@@ -41,9 +41,30 @@ export interface RetrievedMemoryView {
   retrievalScore: number;
 }
 
+export type Verdict = 'ALLOW' | 'DENY';
+export type BlockingCriterion = 'scar' | 'pattern' | 'bad-experience' | 'none';
+
+export interface GateResult {
+  verdict: Verdict;
+  reason: string;
+  /** Memories the gate considered (retrieved bad + scar/pattern members). */
+  usedMemoryIds: string[];
+  /** Subset of usedMemoryIds that caused the DENY. Empty when ALLOW. */
+  blockingMemoryIds: string[];
+  blockedBy: BlockingCriterion;
+  matchedSignature: string | null;
+}
+
 export interface RetrieveResult {
   retrievalId: string;
   memories: RetrievedMemoryView[];
+  /** Constraint gate verdict. DENY means the agent must not trade. */
+  verdict: Verdict;
+  reason: string;
+  usedMemoryIds: string[];
+  blockingMemoryIds: string[];
+  blockedBy: BlockingCriterion;
+  matchedSignature: string | null;
 }
 
 export interface DecisionInput {
@@ -180,7 +201,7 @@ export class CepidClient {
     return this.post('/v1/memories', input);
   }
 
-  async recordDecision(input: DecisionInput): Promise<{ decision: { id: string }; usedMemoryIds: string[] }> {
+  async recordDecision(input: DecisionInput): Promise<{ decision: { id: string }; usedMemoryIds: string[]; gateVerdict: Verdict; gateReason: string; gateBlockingMemoryIds: string[] }> {
     return this.post('/v1/decisions', input);
   }
 

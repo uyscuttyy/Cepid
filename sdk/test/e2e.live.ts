@@ -65,6 +65,10 @@ async function main() {
   assert(typeof r1.retrievalId === 'string' && r1.retrievalId.startsWith('ret-'), 'retrievalId is well-formed');
   assert(Array.isArray(r1.memories), 'memories is an array');
   assert(r1.memories.length === 0, `first retrieve is empty (got ${r1.memories.length})`);
+  assert(r1.verdict === 'ALLOW', `fresh agent gets ALLOW (got ${r1.verdict})`);
+  assert(typeof r1.reason === 'string' && r1.reason.length > 0, 'gate reason is a non-empty string');
+  assert(Array.isArray(r1.usedMemoryIds) && r1.usedMemoryIds.length === 0, 'no used memories on empty retrieve');
+  assert(Array.isArray(r1.blockingMemoryIds) && r1.blockingMemoryIds.length === 0, 'no blocking memories on ALLOW');
   console.log(`  retrievalId = ${r1.retrievalId}`);
 
   // 4. Record an experience so retrieval on a similar situation finds it
@@ -128,6 +132,9 @@ async function main() {
   assert(typeof dec.decision.id === 'string' && dec.decision.id.startsWith('dec-'), 'decision id is well-formed');
   assert(dec.usedMemoryIds.length === 1, `usedMemoryIds reflects platform-side intersection (got ${dec.usedMemoryIds.length})`);
   assert(dec.usedMemoryIds[0] === memId, 'used memory id matches the cited id');
+  assert(dec.gateVerdict === 'ALLOW' || dec.gateVerdict === 'DENY', `recordDecision returns gateVerdict (got ${dec.gateVerdict})`);
+  assert(typeof dec.gateReason === 'string', 'recordDecision returns gateReason');
+  assert(Array.isArray(dec.gateBlockingMemoryIds), 'recordDecision returns gateBlockingMemoryIds');
 
   // 7. recordOutcome → lifecycle loop runs server-side
   const out = await cepid.recordOutcome({
