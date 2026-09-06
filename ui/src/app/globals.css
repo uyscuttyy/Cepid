@@ -54,7 +54,7 @@ a:hover {
 }
 
 .masthead__row {
-  padding: 20px 24px 16px;
+  padding: 20px clamp(24px, 5vw, 64px) 16px;
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
@@ -111,7 +111,7 @@ a:hover {
 }
 
 .masthead__nav {
-  padding: 0 24px 14px;
+  padding: 0 clamp(24px, 5vw, 64px) 14px;
   display: flex;
   flex-wrap: wrap;
   gap: 4px 26px;
@@ -139,11 +139,11 @@ a:hover {
 /* ------------------------------------------------------------------- shell */
 
 .shell {
-  padding: 40px 24px 80px;
+  padding: 40px clamp(24px, 5vw, 64px) 80px;
 }
 
 .colophon {
-  padding: 18px 24px 40px;
+  padding: 18px clamp(24px, 5vw, 64px) 40px;
   border-top: 1px solid var(--rule-strong);
   display: flex;
   flex-wrap: wrap;

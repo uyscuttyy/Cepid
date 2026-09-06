@@ -59,7 +59,7 @@
   --lh-body: 1.65;
 
   /* ---------------------------------------------------------------- layout */
-  --measure: 120ch;
+  --measure: 88ch;
   --content-max: 1080px;
   --gutter: clamp(20px, 4vw, 48px);
 
