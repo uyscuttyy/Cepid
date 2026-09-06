@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { Band, Chip, KV, KVRow, Metric, Metrics, PageHead, Panel } from '@/components/Primitives';
+import { EmptyState, PageHead, Record, RecordRow, Section, Stamp, VerdictWord } from '@/components/Primitives';
 import { getClient } from '@/lib/data';
 import { CepidClientError } from '@/lib/cepid';
 import { DASH, formatDateTime, formatPercent, formatRelative, formatUsdcSigned, shortId } from '@/lib/format';
@@ -14,12 +14,8 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 }
 
 /**
- * MEMORY DETAIL — one experience, told as the story the agent recorded.
- *
- * The shape comes straight from the platform's MemoryRecord: situation →
- * decision → outcome → the lessons drawn. Lifecycle numbers (strength,
- * retrievedCount) are read from the same record — they're maintained by
- * the platform, never recomputed here.
+ * MEMORY DETAIL — one experience, read as an exhibit: the situation, the
+ * decision, the outcome, and every later decision it influenced or stopped.
  */
 export default async function MemoryDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -75,16 +71,16 @@ export default async function MemoryDetailPage({ params }: { params: Promise<{ i
 
   if (!memory) {
     return (
-      <div className="page">
-        <PageHead eyebrow="Memory" title="Could not load" />
-        <Empty
-          title={error === 'MEMORY_SUBSTRATE_UNAVAILABLE' ? 'Substrate down' : error ?? 'Not found'}
+      <div>
+        <PageHead filing={`CEPID · ${shortId(id)}`} title="Exhibit missing" />
+        <EmptyState
+          title={error === 'MEMORY_SUBSTRATE_UNAVAILABLE' ? 'Substrate down' : (error ?? 'Not found')}
           body={
             error === 'MEMORY_SUBSTRATE_UNAVAILABLE'
               ? 'The Sibyl sidecar is not reachable. The substrate is load-bearing — without it there is no memory to show.'
               : error === 'UNAUTHORIZED'
                 ? 'Set CEPID_API_KEY to load private memory detail.'
-                : 'The memory id is not in this agent\'s memory. Either it has been pruned or the id is wrong.'
+                : "The memory id is not in this agent's memory. Either it has been pruned or the id is wrong."
           }
         />
       </div>
@@ -92,213 +88,154 @@ export default async function MemoryDetailPage({ params }: { params: Promise<{ i
   }
 
   const m = memory;
-  const outcomeToneChip = m.outcome?.valence === 'good' ? 'pos' : m.outcome?.valence === 'bad' ? 'neg' : 'quiet';
   const sign = m.outcome?.magnitude;
+  const stoppedSomething = blockedBy.length > 0;
 
   return (
-    <div className="page">
+    <div>
       <PageHead
-        eyebrow={
-          <Link className="link" href="/memories">Memories</Link>
-        }
-        aside={<span className="mono">{shortId(m.id)}</span>}
+        filing={`CEPID · exhibit ${shortId(m.id)}`}
         title={m.situation.text || m.situation.domain}
-        sub={m.outcome?.result ? `Outcome: ${m.outcome.result}` : 'Pending outcome'}
+        lede={
+          <>
+            {m.situation.domain} → <span className="evidence">{m.action}</span> · outcome{' '}
+            <span className="evidence">{m.outcome?.result ?? 'pending'}</span>
+          </>
+        }
       />
 
-      <Band tight>
-        <Metrics>
-          <Metric
-            label="Outcome"
-            value={<Chip tone={outcomeToneChip}>{m.outcome?.result ?? 'pending'}</Chip>}
-            sub={m.outcome ? `observed ${formatRelative(m.outcome.observedAt)}` : 'awaiting outcome'}
-          />
-          <Metric
-            label="Magnitude"
-            value={
-              sign === undefined || sign === null
-                ? DASH
-                : formatUsdcSigned(sign)
-            }
-            tone={
-              sign === undefined || sign === null
-                ? 'muted'
-                : sign > 0
-                  ? 'pos'
-                  : sign < 0
-                    ? 'neg'
-                    : 'muted'
-            }
-            sub={m.outcome ? `valence: ${m.outcome.valence}` : '—'}
-          />
-          <Metric
-            label="Confidence (final)"
-            value={formatPercent(m.decision.confidenceFinal)}
-            tone="blue"
-            sub={`base ${formatPercent(m.decision.confidenceBase)}`}
-          />
-          <Metric
-            label="Strength"
-            value={formatPercent(m.strength)}
-            sub={`importance ${formatPercent(m.importance)}`}
-          />
-        </Metrics>
-      </Band>
-
-      <Band title="Situation">
-        <Panel>
-          <KV>
-            <KVRow k="Domain" v={m.situation.domain} mono />
-            <KVRow k="Text" v={m.situation.text} />
-            {Object.entries(m.situation.facets).length > 0 && (
-              <KVRow
-                k="Facets"
-                v={
-                  <span className="mono" style={{ fontSize: 'var(--fs-small)' }}>
-                    {Object.entries(m.situation.facets)
-                      .map(([k, v]) => `${k}=${String(v)}`)
-                      .join(' · ')}
-                  </span>
-                }
-              />
-            )}
-          </KV>
-        </Panel>
-      </Band>
-
-      <Band title="Decision" hint="what the agent did, and why">
-        <div className="split">
-          <Panel>
-            <KV>
-              <KVRow k="Action" v={m.action} mono />
-              <KVRow k="Base confidence" v={formatPercent(m.decision.confidenceBase)} mono />
-              <KVRow
-                k="Memory influence"
-                v={`${m.decision.memoryInfluence >= 0 ? '+' : ''}${(m.decision.memoryInfluence * 100).toFixed(1)}%`}
-                mono
-              />
-              <KVRow k="Final confidence" v={formatPercent(m.decision.confidenceFinal)} mono />
-            </KV>
-          </Panel>
-          <Panel>
-            <span className="label">Reasoning</span>
-            {m.decision.reasoning.length > 0 ? (
-              <ol className="reasons">
-                {m.decision.reasoning.map((r, i) => (
-                  <li className="reasons__item" key={i}>
-                    <span className="reasons__index mono">{String(i + 1).padStart(2, '0')}</span>
-                    <span>{r}</span>
-                  </li>
-                ))}
-              </ol>
-            ) : (
-              <p className="prose">No reasoning recorded.</p>
-            )}
-          </Panel>
+      {stoppedSomething && (
+        <div style={{ margin: '28px 0 8px' }}>
+          <Stamp verdict="DENY" size="hero" />
+          <p className="hero__caption" style={{ marginTop: 16 }}>
+            This memory helped stop a later trade. The gate cited it as blocking evidence —
+            see the influence record below.
+          </p>
         </div>
-      </Band>
-
-      {m.outcome && (
-        <Band title="Outcome">
-          <Panel>
-            <KV>
-              <KVRow k="Result" v={m.outcome.result} mono />
-              <KVRow k="Valence" v={m.outcome.valence} mono />
-              <KVRow k="Observed" v={formatDateTime(m.outcome.observedAt)} mono />
-              {m.outcome.marketOutcome && (
-                <KVRow k="Market outcome" v={m.outcome.marketOutcome} mono />
-              )}
-              {m.outcome.tradeOutcome && (
-                <KVRow k="Trade outcome" v={m.outcome.tradeOutcome} mono />
-              )}
-              {m.outcome.evidence?.txHash && (
-                <KVRow k="Evidence (tx)" v={m.outcome.evidence.txHash} mono />
-              )}
-              {Object.keys(m.outcome.metrics).length > 0 && (
-                <KVRow
-                  k="Metrics"
-                  v={
-                    <span className="mono" style={{ fontSize: 'var(--fs-small)' }}>
-                      {Object.entries(m.outcome.metrics)
-                        .map(([k, v]) => `${k}=${v}`)
-                        .join(' · ')}
-                    </span>
-                  }
-                />
-              )}
-            </KV>
-          </Panel>
-        </Band>
       )}
 
-      <Band title="Influence" hint="decisions this memory participated in">
+      <Section title="The facts">
+        <Record>
+          <RecordRow k="Domain" v={m.situation.domain} mono />
+          <RecordRow k="Action" v={m.action} mono />
+          <RecordRow
+            k="Facets"
+            v={
+              Object.entries(m.situation.facets).length > 0 ? (
+                <span className="evidence" style={{ fontSize: 'var(--fs-small)' }}>
+                  {Object.entries(m.situation.facets)
+                    .map(([k, v]) => `${k}=${String(v)}`)
+                    .join(' · ')}
+                </span>
+              ) : (
+                DASH
+              )
+            }
+          />
+          <RecordRow
+            k="Outcome"
+            v={
+              m.outcome ? (
+                <>
+                  <span className="evidence">{m.outcome.result}</span> · valence{' '}
+                  <span className="evidence">{m.outcome.valence}</span>
+                  {sign !== undefined && sign !== null && <> · {formatUsdcSigned(sign)}</>}
+                </>
+              ) : (
+                'pending'
+              )
+            }
+          />
+          {m.outcome && (
+            <RecordRow k="Observed" v={formatDateTime(m.outcome.observedAt)} mono />
+          )}
+          {m.outcome?.marketOutcome && (
+            <RecordRow k="Market outcome" v={m.outcome.marketOutcome} mono />
+          )}
+          {m.outcome?.tradeOutcome && (
+            <RecordRow k="Trade outcome" v={m.outcome.tradeOutcome} mono />
+          )}
+          {m.outcome?.evidence?.txHash && (
+            <RecordRow k="Evidence (tx)" v={m.outcome.evidence.txHash} mono />
+          )}
+          <RecordRow
+            k="Confidence"
+            v={`${formatPercent(m.decision.confidenceFinal)} final (base ${formatPercent(m.decision.confidenceBase)}, memory ${m.decision.memoryInfluence >= 0 ? '+' : ''}${(m.decision.memoryInfluence * 100).toFixed(1)}%)`}
+            mono
+          />
+          <RecordRow
+            k="Strength"
+            v={`${formatPercent(m.strength)} · importance ${formatPercent(m.importance)} · retrieved ${m.retrievedCount} times`}
+            mono
+          />
+        </Record>
+      </Section>
+
+      {m.decision.reasoning.length > 0 && (
+        <Section title="The agent's reasoning" note="recorded at decision time">
+          <div className="exhibit-box">
+            {m.decision.reasoning.map((r, i) => (
+              <p className="prose" key={i}>
+                <span className="evidence" style={{ color: 'var(--ink-3)', marginRight: 12 }}>
+                  {String(i + 1).padStart(2, '0')}
+                </span>
+                {r}
+              </p>
+            ))}
+          </div>
+        </Section>
+      )}
+
+      <Section
+        title="Influence record"
+        note="decisions this memory participated in, from the journal"
+      >
         {citingDecisions.length === 0 && blockedBy.length === 0 ? (
-          <Panel tone="thin">
-            <p className="prose" style={{ fontSize: 'var(--fs-small)' }}>
-              No decision has cited this memory yet. When an agent retrieves it
-              and records a decision against that retrieval, the decision
-              appears here with its verdict.
-            </p>
-          </Panel>
+          <EmptyState
+            title="Not yet cited"
+            body="No decision has cited this memory yet. When an agent retrieves it and records a decision against that retrieval, the decision appears here with its verdict."
+          />
         ) : (
-          <div className="stack">
+          <div className="ledger">
             {citingDecisions.map((d) => (
-              <div className="row" key={d.decisionId}>
-                <span className="row__lead">{shortId(d.decisionId)}</span>
-                <span className="row__main">
-                  <span className="row__title">
-                    {d.action}{' '}
-                    <Chip tone={d.verdict === 'DENY' ? 'neg' : 'quiet'}>{d.verdict}</Chip>
+              <div className="ledger__row" key={d.decisionId}>
+                <span className="ledger__id">{shortId(d.decisionId)}</span>
+                <span>
+                  <span className="ledger__title">
+                    {d.action} — <VerdictWord verdict={d.verdict} />
                   </span>
-                  <span className="row__sub mono">retrieval {shortId(d.retrievalId)}</span>
+                  <span className="ledger__sub">
+                    retrieval <span className="evidence">{shortId(d.retrievalId)}</span>
+                  </span>
                 </span>
-                <span className="row__trail">
-                  <span style={{ color: 'var(--text-3)' }}>{formatRelative(d.at)}</span>
-                </span>
+                <span className="ledger__meta">{formatRelative(d.at)}</span>
               </div>
             ))}
             {blockedBy.map((b, i) => (
-              <div className="row" key={`${b.retrievalId}-${i}`}>
-                <span className="row__lead">⛔</span>
-                <span className="row__main">
-                  <span className="row__title">
-                    Blocked a trade <Chip tone="neg">DENY</Chip>
+              <div className="ledger__row" key={`${b.retrievalId}-${i}`}>
+                <span className="ledger__id">blocked</span>
+                <span>
+                  <span className="ledger__title">
+                    Stopped a trade — <VerdictWord verdict="DENY" />
                   </span>
-                  <span className="row__sub">{b.reason}</span>
+                  <span className="ledger__sub">{b.reason}</span>
                 </span>
-                <span className="row__trail">
-                  <span style={{ color: 'var(--text-3)' }}>{formatRelative(b.at)}</span>
-                </span>
+                <span className="ledger__meta">{formatRelative(b.at)}</span>
               </div>
             ))}
           </div>
         )}
-      </Band>
+      </Section>
 
-      <Band title="Lifecycle" tight>
-        <Panel tone="thin">
-          <KV>
-            <KVRow k="Memory id" v={m.id} mono />
-            <KVRow k="Created" v={formatDateTime(m.createdAt)} mono />
-            <KVRow k="Updated" v={formatDateTime(m.updatedAt)} mono />
-            <KVRow k="Retrieved" v={`${m.retrievedCount} times`} mono />
-            {m.lastRetrievedAt && (
-              <KVRow k="Last retrieved" v={formatRelative(m.lastRetrievedAt)} mono />
-            )}
-            <KVRow k="Source" v={m.source} mono />
-            <KVRow k="Surprising" v={m.surprising ? 'Yes' : 'No'} />
-          </KV>
-        </Panel>
-      </Band>
-    </div>
-  );
-}
-
-function Empty({ title, body }: { title: string; body: string }) {
-  return (
-    <div className="state">
-      <h3 className="state__title">{title}</h3>
-      <p className="state__body">{body}</p>
+      <Section title="Provenance">
+        <Record>
+          <RecordRow k="Memory id" v={m.id} mono />
+          <RecordRow k="Filed" v={formatDateTime(m.createdAt)} mono />
+          <RecordRow k="Last retrieved" v={m.lastRetrievedAt ? formatRelative(m.lastRetrievedAt) : DASH} mono />
+          <RecordRow k="Source" v={m.source} mono />
+          <RecordRow k="Back to" v={<Link href="/memories">the docket</Link>} />
+        </Record>
+      </Section>
     </div>
   );
 }

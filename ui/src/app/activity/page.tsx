@@ -1,10 +1,9 @@
 import Link from 'next/link';
-import type { ReactNode } from 'react';
-import { Band, EmptyState, Metric, Metrics, Notice, PageHead } from '@/components/Primitives';
+import { EmptyState, Figure, Figures, Ledger, Notice, PageHead, Section } from '@/components/Primitives';
 import { getClient } from '@/lib/data';
 import { CepidClientError } from '@/lib/cepid';
-import { formatClock, formatCount, formatRelative } from '@/lib/format';
 import type { AgentEvent } from '@/lib/cepid';
+import { formatClock, formatCount, formatRelative } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -12,12 +11,8 @@ export const runtime = 'nodejs';
 export const metadata = { title: 'Activity' };
 
 /**
- * ACTIVITY — the journal feed, newest first.
- *
- * Every API call writes a row to the per-agent journal: agent registered,
- * memory retrieved, decision recorded, outcome recorded, payment settled.
- * The journal is append-only, so the feed is a literal time-ordered slice
- * of what has happened.
+ * ACTIVITY — the journal, newest first. An append-only record of everything
+ * the platform did: retrievals, verdicts, decisions, outcomes, settlements.
  */
 export default async function ActivityPage() {
   const client = getClient();
@@ -36,8 +31,8 @@ export default async function ActivityPage() {
 
   if (needsAuth) {
     return (
-      <div className="page">
-        <PageHead eyebrow="Activity" title="Sign in to view the journal" />
+      <div>
+        <PageHead filing="CEPID-004" title="Sign in to read the journal" />
         <EmptyState
           title="CEPID_API_KEY not set"
           body="Activity is read from /v1/activity, which is bearer-keyed. Set CEPID_API_KEY and restart the dashboard."
@@ -48,10 +43,11 @@ export default async function ActivityPage() {
 
   if (error === 'MEMORY_SUBSTRATE_UNAVAILABLE') {
     return (
-      <div className="page">
-        <PageHead eyebrow="Activity" title="Substrate down" />
+      <div>
+        <PageHead filing="CEPID-004" title="Substrate down" />
         <Notice title="The journal is unreachable" tone="warn">
-          The substrate is load-bearing. Until the sidecar is restored, the journal is also down.
+          The substrate is load-bearing. Until the sidecar is restored, the journal is
+          also down.
         </Notice>
       </div>
     );
@@ -59,8 +55,8 @@ export default async function ActivityPage() {
 
   if (error) {
     return (
-      <div className="page">
-        <PageHead eyebrow="Activity" title="Could not load" />
+      <div>
+        <PageHead filing="CEPID-004" title="Could not load" />
         <EmptyState title="Platform error" body={error} />
       </div>
     );
@@ -68,8 +64,8 @@ export default async function ActivityPage() {
 
   if (events.length === 0) {
     return (
-      <div className="page">
-        <PageHead eyebrow="Activity" title="No activity yet" />
+      <div>
+        <PageHead filing="CEPID-004" title="No activity yet" />
         <EmptyState
           title="The journal is empty"
           body="As the agent runs, every retrieval, decision, outcome, and settled payment is appended here."
@@ -79,108 +75,139 @@ export default async function ActivityPage() {
   }
 
   const sorted = [...events].sort((a, b) => String(b.at).localeCompare(String(a.at)));
+  const denies = sorted.filter((e) => e.type === 'gate.denied').length;
   const last7 = sorted.filter((e) => Date.now() - new Date(String(e.at)).getTime() < 7 * 86_400_000).length;
 
   return (
-    <div className="page">
+    <div>
       <PageHead
-        eyebrow="Activity"
-        aside={
-          <span className="mono">
-            {formatCount(sorted.length)} {sorted.length === 1 ? 'row' : 'rows'}
-          </span>
-        }
-        title="Journal"
-        sub="Every event the platform recorded, newest first. Each row corresponds to a real action."
+        filing={`CEPID-004 · ${formatCount(sorted.length)} ${sorted.length === 1 ? 'entry' : 'entries'}`}
+        title="The journal"
+        lede="Every event the platform recorded, newest first. Each entry corresponds to something that really happened."
       />
 
-      <Band tight>
-        <Metrics>
-          <Metric label="Total rows" value={formatCount(sorted.length)} />
-          <Metric label="Last 7 days" value={formatCount(last7)} tone={last7 > 0 ? 'blue' : 'muted'} />
-          <Metric
-            label="Last activity"
+      <Section title="Standing">
+        <Figures>
+          <Figure label="Entries" value={formatCount(sorted.length)} />
+          <Figure label="Last 7 days" value={formatCount(last7)} />
+          <Figure
+            label="Trades stopped"
+            value={formatCount(denies)}
+            tone={denies > 0 ? 'deny' : undefined}
+            note="gate.denied entries"
+          />
+          <Figure
+            label="Last entry"
             value={formatRelative(String(sorted[0]!.at))}
-            tone="muted"
-            sub={String(sorted[0]!.type)}
+            mono
+            note={String(sorted[0]!.type)}
           />
-          <Metric
-            label="Distinct event types"
-            value={formatCount(new Set(sorted.map((e) => e.type)).size)}
-            sub="unique event.type values"
-          />
-        </Metrics>
-      </Band>
+        </Figures>
+      </Section>
 
-      <Band title="Feed">
-        <div className="activity">
+      <Section title="Entries">
+        <Ledger>
           {sorted.slice(0, 100).map((ev, i) => (
-            <div className="activity__item" key={`${ev.at}-${i}`} data-latest={i === 0 ? 'true' : 'false'}>
-              <span className="activity__time">{formatClock(String(ev.at))}</span>
-              <span className="activity__body">
-                <span className="activity__what">{String(ev.type)}</span>
-                <span className="activity__detail">
-                  {summarise(ev)}
-                </span>
+            <div className="ledger__row" key={`${String(ev.at)}-${i}`}>
+              <span className="ledger__time">{formatClock(String(ev.at))}</span>
+              <span>
+                <span className="ledger__title">{titleFor(ev)}</span>
+                <span className="ledger__sub">{summarise(ev)}</span>
               </span>
+              <span className="ledger__meta">{kindFor(ev)}</span>
             </div>
           ))}
-        </div>
-      </Band>
+        </Ledger>
+      </Section>
     </div>
   );
 }
 
-function summarise(ev: AgentEvent): ReactNode {
+function titleFor(ev: AgentEvent): string {
+  const t = String(ev.type);
+  if (t === 'gate.denied') return 'Trade stopped';
+  if (t === 'decision.recorded') return `Decision: ${String(ev.action ?? '?')}`;
+  if (t === 'memory.retrieved') return 'Retrieval';
+  if (t === 'outcome.recorded') return `Outcome: ${String(ev.result ?? '?')}`;
+  if (t === 'memory.settled') return 'Memory settled';
+  if (t === 'memory.validated') return 'Memory validated';
+  if (t === 'memory.created') return 'Memory filed';
+  if (t === 'usage.settled') return 'Payment settled';
+  if (t === 'agent.registered') return 'Agent registered';
+  if (t === 'agent.revoked') return 'Agent revoked';
+  return t;
+}
+
+function kindFor(ev: AgentEvent): string {
+  const t = String(ev.type);
+  if (t === 'gate.denied') return 'DENY';
+  if (t === 'decision.recorded') return String(ev.gateVerdict ?? 'ALLOW');
+  if (t === 'outcome.recorded') return String(ev.result ?? '');
+  if (t === 'memory.settled') return String(ev.result ?? '');
+  return '';
+}
+
+function summarise(ev: AgentEvent): React.ReactNode {
   if (ev.type === 'gate.denied') {
-    const ids = Array.isArray(ev.blockingMemoryIds) ? ev.blockingMemoryIds as string[] : [];
+    const ids = Array.isArray(ev.blockingMemoryIds) ? (ev.blockingMemoryIds as string[]) : [];
     return (
       <>
-        <span className="chip chip--neg">DENY</span>{' '}
         {String(ev.reason ?? 'blocked by memory')}
         {ids.length > 0 && (
-          <> · blocking: {ids.map((id, i) => (
-            <span key={id}>
-              {i > 0 && ', '}
-              <Link className="link mono" href={`/memories/${id}`}>{short(id)}</Link>
-            </span>
-          ))}</>
+          <>
+            {' '}· blocking:{' '}
+            {ids.map((id, i) => (
+              <span key={id}>
+                {i > 0 && ', '}
+                <Link className="evidence" href={`/memories/${id}`}>
+                  {short(id)}
+                </Link>
+              </span>
+            ))}
+          </>
         )}
       </>
     );
   }
   if (ev.type === 'decision.recorded') {
-    const verdict = String(ev.gateVerdict ?? 'ALLOW');
-    const used = Array.isArray(ev.usedMemoryIds) ? ev.usedMemoryIds as string[] : [];
+    const used = Array.isArray(ev.usedMemoryIds) ? (ev.usedMemoryIds as string[]) : [];
     return (
       <>
-        decision {short(String(ev.decisionId))} → {String(ev.action ?? '?')}{' '}
-        <span className={`chip chip--${verdict === 'DENY' ? 'neg' : 'quiet'}`}>{verdict}</span>
+        decision <span className="evidence">{short(String(ev.decisionId))}</span>
         {used.length > 0 && (
-          <> · used: {used.slice(0, 4).map((id, i) => (
-            <span key={id}>
-              {i > 0 && ', '}
-              <Link className="link mono" href={`/memories/${id}`}>{short(id)}</Link>
-            </span>
-          ))}{used.length > 4 && ` +${used.length - 4} more`}</>
+          <>
+            {' '}· used:{' '}
+            {used.slice(0, 4).map((id, i) => (
+              <span key={id}>
+                {i > 0 && ', '}
+                <Link className="evidence" href={`/memories/${id}`}>
+                  {short(id)}
+                </Link>
+              </span>
+            ))}
+            {used.length > 4 && ` +${used.length - 4} more`}
+          </>
         )}
       </>
     );
   }
   const known: Record<string, string> = {
     'memory.retrieved': `retrieval ${short(String(ev.retrievalId))} returned ${String(ev.returned ?? '?')}`,
-    'outcome.recorded': `outcome for ${short(String(ev.decisionId))} = ${String(ev.result ?? '?')}`,
-    'memory.settled': `memory ${short(String(ev.memoryId))} settled = ${String(ev.result ?? '?')}`,
-    'memory.validated': `validated decision ${short(String(ev.decisionId))}: ${String(ev.reinforced ?? 0)} reinforced, ${String(ev.weakened ?? 0)} weakened`,
-    'memory.created': `memory ${short(String(ev.memoryId))} created`,
+    'outcome.recorded': `for ${short(String(ev.decisionId))}`,
+    'memory.settled': `memory ${short(String(ev.memoryId))}`,
+    'memory.validated': `${String(ev.reinforced ?? 0)} reinforced, ${String(ev.weakened ?? 0)} weakened`,
+    'memory.created': `memory ${short(String(ev.memoryId))}`,
     'usage.settled': `${String(ev.route ?? '?')} settled ${String(ev.price ?? '?')}${ev.txHash ? ` · tx ${short(String(ev.txHash))}` : ''}`,
     'agent.registered': `name: ${String(ev.name ?? '?')}`,
     'agent.revoked': `id: ${short(String(ev.agentId ?? '?'))}`,
   };
-  return known[String(ev.type)] ?? Object.entries(ev)
-    .filter(([k]) => !['type', 'at'].includes(k))
-    .map(([k, v]) => `${k}=${String(v)}`)
-    .join(' · ');
+  return (
+    known[String(ev.type)] ??
+    Object.entries(ev)
+      .filter(([k]) => !['type', 'at'].includes(k))
+      .map(([k, v]) => `${k}=${String(v)}`)
+      .join(' · ')
+  );
 }
 
 function short(s: string): string {

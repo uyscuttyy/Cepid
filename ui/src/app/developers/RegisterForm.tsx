@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Chip, Notice, Panel } from '@/components/Primitives';
+import { Notice } from '@/components/Primitives';
 
 interface Issued {
   agentId: string;
@@ -56,102 +56,64 @@ export function RegisterForm() {
 
   if (issued) {
     return (
-      <Panel>
-        <div className="stack">
-          <div>
-            <Chip tone="pos">registered</Chip>{' '}
-            <span className="mono" style={{ marginLeft: 'var(--s-3)' }}>{issued.agentId}</span>
-          </div>
-          <div>
-            <span className="label">API key</span>
-            <pre style={keyBoxStyle}>{issued.apiKey}</pre>
-            <p className="prose" style={{ fontSize: 'var(--fs-small)' }}>
-              Prefix <span className="mono">{issued.keyPrefix}</span> · last 4{' '}
-              <span className="mono">{issued.keyLast4}</span> ·{' '}
-              <strong>shown once</strong>. Store it now.
-            </p>
-          </div>
-          <Notice title="Next: use it" tone="blue">
-            Set <code>CEPID_API_KEY={issued.apiKey}</code> in your agent's
-            environment, install <code>@cepid/client</code>, and call{' '}
-            <code>cepid.retrieve(&#123; situation &#125;)</code> against{' '}
-            <code>CEPID_API_URL</code>. The first retrieval will be paid
-            via x402 at the configured price.
-          </Notice>
-        </div>
-      </Panel>
+      <div>
+        <p className="prose">
+          Registered as <span className="evidence">{issued.agentId}</span>.
+        </p>
+        <p className="prose">Your key — shown once, never stored. Copy it now.</p>
+        <pre className="codeblock" style={{ background: 'var(--deny)', margin: '16px 0' }}>
+          {issued.apiKey}
+        </pre>
+        <p className="prose" style={{ fontSize: 'var(--fs-small)' }}>
+          Prefix <span className="evidence">{issued.keyPrefix}</span> · last 4{' '}
+          <span className="evidence">{issued.keyLast4}</span>
+        </p>
+        <Notice title="Next: use it" tone="allow">
+          Set <code>CEPID_API_KEY={issued.apiKey}</code> in your agent's environment,
+          install <code>@cepid/client</code>, and call{' '}
+          <code>cepid.retrieve(&#123; situation &#125;)</code> against{' '}
+          <code>CEPID_API_URL</code>. The first retrieval will be paid via x402 at the
+          configured price.
+        </Notice>
+      </div>
     );
   }
 
   return (
-    <form onSubmit={submit}>
-      <Panel>
-        <div className="stack">
-          <label style={labelStyle}>
-            <span className="label">Name</span>
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              minLength={1}
-              maxLength={128}
-              placeholder="e.g. Support Triage Bot"
-              style={inputStyle}
-            />
-          </label>
-          <label style={labelStyle}>
-            <span className="label">Description (optional)</span>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              maxLength={512}
-              rows={3}
-              placeholder="What the agent does — appears on its registry row."
-              style={{ ...inputStyle, fontFamily: 'var(--font-sans)' }}
-            />
-          </label>
-          {error && <Notice title="Could not register" tone="neg">{error}</Notice>}
-          <div>
-            <button type="submit" disabled={submitting || name.trim().length === 0} style={btnStyle}>
-              {submitting ? 'Registering…' : 'Register agent'}
-            </button>
-          </div>
-        </div>
-      </Panel>
+    <form onSubmit={submit} className="form">
+      <label className="form__field">
+        <span className="form__label">Name</span>
+        <input
+          className="form__input"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          required
+          minLength={1}
+          maxLength={128}
+          placeholder="e.g. Support Triage Bot"
+        />
+      </label>
+      <label className="form__field">
+        <span className="form__label">Description (optional)</span>
+        <textarea
+          className="form__input"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          maxLength={512}
+          rows={3}
+          placeholder="What the agent does — appears on its registry row."
+        />
+      </label>
+      {error && (
+        <Notice title="Could not register" tone="deny">
+          {error}
+        </Notice>
+      )}
+      <div>
+        <button className="form__submit" type="submit" disabled={submitting || name.trim().length === 0}>
+          {submitting ? 'Registering…' : 'Register agent'}
+        </button>
+      </div>
     </form>
   );
 }
-
-const labelStyle: React.CSSProperties = { display: 'grid', gap: 'var(--s-2)' };
-
-const inputStyle: React.CSSProperties = {
-  background: 'var(--surface-2)',
-  border: '1px solid var(--line)',
-  borderRadius: 'var(--r-2)',
-  padding: 'var(--s-3) var(--s-4)',
-  color: 'var(--text)',
-  fontFamily: 'var(--font-sans)',
-  fontSize: 'var(--fs-body)',
-  width: '100%',
-};
-
-const btnStyle: React.CSSProperties = {
-  background: 'var(--blue)',
-  color: 'var(--blue-ink)',
-  padding: 'var(--s-3) var(--s-5)',
-  borderRadius: 'var(--r-2)',
-  fontWeight: 500,
-  fontSize: 'var(--fs-body)',
-};
-
-const keyBoxStyle: React.CSSProperties = {
-  background: 'var(--surface)',
-  border: '1px solid var(--line-strong)',
-  borderRadius: 'var(--r-2)',
-  padding: 'var(--s-4)',
-  fontFamily: 'var(--font-mono)',
-  fontSize: 'var(--fs-body)',
-  color: 'var(--blue)',
-  overflowX: 'auto',
-  margin: 'var(--s-3) 0',
-};

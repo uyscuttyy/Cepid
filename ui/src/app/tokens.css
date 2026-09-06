@@ -1,126 +1,74 @@
 /* =============================================================================
-   CEPID — design tokens
+   CEPID — design tokens: "The Case File"
    -----------------------------------------------------------------------------
-   Visual identity: deep brown environment + sky-blue intelligence + warm text.
+   The product is an evidence ledger: verdicts, scars, journals, transaction
+   hashes. The interface reads as a legal docket on paper — ruled lines,
+   case numbers, and a verdict stamp — not a SaaS dashboard.
 
    Rules encoded here:
-   - Deep brown-black environment, never pure black.
-   - Sky blue means "the agent is thinking / remembering / active" — it is a
-     semantic signal, not a brand fill. Most buttons are NOT blue.
-   - Trading states stay muted. This is not a red/green terminal.
-   - Small, deliberate type hierarchy. Mono is reserved for numerics and ids.
-   - Atmosphere is depth, not decoration: opacities here are intentionally tiny.
+   - Paper, never pure white; ink, never pure black.
+   - Red speaks only for DENY / scars / losses. Green speaks only for
+     ALLOW / wins. Amber only for pending. Nothing else gets a hue.
+   - Fraunces carries display and headlines; the system sans carries body;
+     Plex Mono is reserved for evidence (hashes, ids, verdicts, figures).
+   - Rules are hairlines; corners are square, except the stamp.
    ============================================================================= */
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
 
-  /* ---------------------------------------------------------------- surfaces */
-  --bg: #100d0b;              /* application environment */
-  --surface: #181310;         /* large sections and bands */
-  --surface-2: #211a16;       /* cards, panels, modals, expanded detail */
-  --surface-3: #2a211c;       /* hover / selected / deepest layer (sparingly) */
+  /* ----------------------------------------------------------------- paper */
+  --paper: #f4f2ec;
+  --paper-2: #ece9df;
+  --paper-3: #e2ded2;
 
-  /* Translucent surfaces — let the atmosphere read through */
-  --surface-thin: rgba(33, 26, 22, 0.55);
-  --surface-veil: rgba(16, 13, 11, 0.72);
+  /* ------------------------------------------------------------------- ink */
+  --ink: #1a1c20;
+  --ink-2: #3c4048;
+  --ink-3: #5c6270;
 
-  /* ------------------------------------------------------------------- text */
-  --text: #f4eee8;            /* primary, warm white */
-  --text-2: #b7ada4;          /* secondary */
-  --text-3: #756c64;          /* muted */
+  /* ------------------------------------------------------------------ rule */
+  --rule: #d8d4c8;
+  --rule-strong: #b9b3a1;
 
-  /* ------------------------------------------------------------------ lines */
-  --line: rgba(244, 238, 232, 0.08);
-  --line-2: rgba(244, 238, 232, 0.14);
-  --line-strong: rgba(244, 238, 232, 0.22);
+  /* ------------------------------------------------- signals (rationed) */
+  --deny: #b3261e;
+  --deny-wash: rgba(179, 38, 30, 0.07);
+  --allow: #1f6b3a;
+  --allow-wash: rgba(31, 107, 58, 0.08);
+  --pending: #9a6a00;
+  --pending-wash: rgba(154, 106, 0, 0.09);
+  --link: #1d4ed8;
 
-  /* ---------------------------------------------- signature — sky blue (AI) */
-  --blue: #72c9f4;
-  --blue-bright: #91d9ff;
-  --blue-ink: #0c1a22;        /* dark text that sits on a blue fill */
-  --blue-08: rgba(114, 201, 244, 0.08);
-  --blue-14: rgba(114, 201, 244, 0.14);
-  --blue-24: rgba(114, 201, 244, 0.24);
-  --blue-40: rgba(114, 201, 244, 0.4);
-  --blue-glow: rgba(114, 201, 244, 0.13);
+  /* ------------------------------------------------------------------ type */
+  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
+  --font-body: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --font-evidence: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas,
+    monospace;
 
-  /* ---------------------------------------------------- trading states (muted) */
-  --pos: #8cc9a5;
-  --pos-08: rgba(140, 201, 165, 0.08);
-  --pos-20: rgba(140, 201, 165, 0.2);
-  --neg: #d58d8d;
-  --neg-08: rgba(213, 141, 141, 0.08);
-  --neg-20: rgba(213, 141, 141, 0.2);
-  --warn: #d9b981;
-  --warn-08: rgba(217, 185, 129, 0.08);
-  --warn-20: rgba(217, 185, 129, 0.2);
+  --fs-hero: clamp(2.75rem, 6vw, 4.5rem);
+  --fs-title: clamp(1.625rem, 3vw, 2.25rem);
+  --fs-head: 1.25rem;
+  --fs-body: 1rem;
+  --fs-small: 0.875rem;
+  --fs-note: 0.75rem;
 
-  /* ------------------------------------------------------------------- type */
-  --font-sans: "Geist", "Inter", ui-sans-serif, system-ui, -apple-system,
-    "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
-  --font-mono: "Geist Mono", ui-monospace, "SF Mono", "JetBrains Mono", Menlo,
-    Consolas, monospace;
+  --lh-tight: 1.05;
+  --lh-head: 1.25;
+  --lh-body: 1.65;
 
-  /* Display sizes are fluid; body sizes are fixed for readability. */
-  --fs-display: clamp(2.5rem, 5.2vw, 4rem);
-  --fs-hero: clamp(3.5rem, 9vw, 6.5rem);
-  --fs-title: clamp(1.5rem, 2.4vw, 2rem);
-  --fs-heading: 1.125rem;
-  --fs-body: 0.9375rem;
-  --fs-small: 0.8125rem;
-  --fs-label: 0.6875rem;
-  --fs-micro: 0.625rem;
-
-  --lh-tight: 1.02;
-  --lh-snug: 1.2;
-  --lh-body: 1.6;
-
-  --track-display: -0.03em;
-  --track-title: -0.02em;
-  --track-label: 0.14em;
-  --track-wide: 0.2em;
-
-  /* ---------------------------------------------------------------- spacing */
-  --s-1: 4px;
-  --s-2: 8px;
-  --s-3: 12px;
-  --s-4: 16px;
-  --s-5: 24px;
-  --s-6: 32px;
-  --s-7: 48px;
-  --s-8: 64px;
-  --s-9: 96px;
-  --s-10: 128px;
-
-  /* ----------------------------------------------------------------- layout */
-  --rail: 232px;              /* desktop navigation rail */
-  --content-max: 1160px;
+  /* ---------------------------------------------------------------- layout */
+  --measure: 68ch;
+  --content-max: 1080px;
   --gutter: clamp(20px, 4vw, 48px);
 
-  /* ------------------------------------------------------------------ radii */
-  --r-1: 4px;
-  --r-2: 8px;
-  --r-3: 14px;
-  --r-4: 22px;
-  --r-pill: 9999px;
-
-  /* -------------------------------------------------------------- elevation */
-  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-2: 0 8px 28px -12px rgba(0, 0, 0, 0.7);
-  --shadow-3: 0 24px 60px -24px rgba(0, 0, 0, 0.8);
-  --shadow-blue: 0 0 0 1px var(--blue-24), 0 8px 32px -12px var(--blue-glow);
-
-  /* ----------------------------------------------------------------- motion */
-  --t-fast: 120ms cubic-bezier(0.2, 0, 0.3, 1);
-  --t-med: 220ms cubic-bezier(0.2, 0, 0.3, 1);
-  --t-slow: 420ms cubic-bezier(0.2, 0, 0.3, 1);
+  /* ---------------------------------------------------------------- motion */
+  --t-stamp: 450ms cubic-bezier(0.2, 1.4, 0.3, 1);
 }
 
 @media (prefers-reduced-motion: reduce) {
   :root {
-    --t-fast: 1ms linear;
-    --t-med: 1ms linear;
-    --t-slow: 1ms linear;
+    --t-stamp: 1ms linear;
   }
 }

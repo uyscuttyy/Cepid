@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Band, PageHead, Panel } from '@/components/Primitives';
+import { PageHead, Section, Stamp } from '@/components/Primitives';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -7,113 +7,104 @@ export const runtime = 'nodejs';
 export const metadata = { title: 'Demo' };
 
 /**
- * DEMO — the two-run reference demonstration (architecture.md §15).
- *
- * This page documents the demo path. The demo is a real test against the
- * live stack (sidecar + API + Base Sepolia market), run twice:
- *   1. fresh agent session, no relevant memory, takes the trade, loses
- *   2. new process, pays x402 to retrieve, decision changes (vetoed)
- *
- * The numbers and txHashes that prove the demo ran are written into the
- * agent's memory and surface in Memories and Activity. This page is the
- * description of what those rows should look like.
+ * DEMO — the two-run reference demonstration, told as a docket of exhibits.
+ * Numbered because it is a genuine sequence. Real txHashes and memory ids
+ * from the recorded run are quoted as evidence.
  */
 export default function DemoPage() {
   return (
-    <div className="page">
+    <div>
       <PageHead
-        eyebrow="Demo"
-        title="The two-run reference demonstration"
-        sub="The acceptance test for the product: the agent met the same situation twice and behaved differently the second time because CEPID remembered."
+        filing="CEPID-005"
+        title="The two-run demonstration"
+        lede="The acceptance test for the product: the agent met the same situation twice and behaved differently the second time because CEPID remembered."
       />
 
-      <Band title="What you are about to see" tight>
-        <Panel>
-          <ol className="reasons">
-            <li className="reasons__item">
-              <span className="reasons__index mono">01</span>
-              <span>
-                <strong>Run 1</strong> — a fresh agent session encounters a market
-                for the first time. No relevant memory exists. The base
-                strategy says <span className="mono">LONG</span>. The agent takes
-                the trade on Base Sepolia with real testnet USDC.
-              </span>
-            </li>
-            <li className="reasons__item">
-              <span className="reasons__index mono">02</span>
-              <span>
-                The market resolves against the trade. CEPID records the outcome
-                with the on-chain txHash as evidence. The experience becomes a
-                memory.
-              </span>
-            </li>
-            <li className="reasons__item">
-              <span className="reasons__index mono">03</span>
-              <span>
-                After several similar losses, a pattern forms. With repeated
-                losses on the same conditions, a scar is created.
-              </span>
-            </li>
-            <li className="reasons__item">
-              <span className="reasons__index mono">04</span>
-              <span>
-                <strong>Run 2</strong> — a new process, same kind of situation.
-                The agent pays $0.01 USDC (x402) to retrieve. CEPID returns the
-                prior losses, the pattern, and the scar.
-              </span>
-            </li>
-            <li className="reasons__item">
-              <span className="reasons__index mono">05</span>
-              <span>
-                Final confidence drops below the 50% threshold. The decision
-                becomes <span className="mono">NO_TRADE</span> — and the decision
-                row references the retrieval row that produced it.
-              </span>
-            </li>
-            <li className="reasons__item">
-              <span className="reasons__index mono">06</span>
-              <span>
-                The outcome of run 2 is recorded. Memories that helped are
-                reinforced; the scar decays at a quarter of the ordinary rate.
-                Counts are visible in <Link className="link" href="/memories">Memories</Link>.
-              </span>
-            </li>
-          </ol>
-        </Panel>
-      </Band>
+      <div className="hero__stamps">
+        <Stamp verdict="ALLOW" size="hero" />
+        <span className="hero__arrow" aria-hidden="true">
+          →
+        </span>
+        <Stamp verdict="DENY" size="hero" />
+      </div>
 
-      <Band title="What this proves" tight>
-        <Panel tone="thin">
+      <Section title="Exhibits">
+        <ol className="docket">
+          <li className="docket__item">
+            <div>
+              <p>
+                <strong>Run 1.</strong> A fresh agent session encounters a market for the first
+                time. No relevant memory exists, so the gate returns ALLOW and the agent buys
+                YES — three times, with real testnet USDC on Base Sepolia.
+              </p>
+              <p className="evidence" style={{ fontSize: 'var(--fs-small)', color: 'var(--ink-3)' }}>
+                0x7ac860…0582 · 0x75e567…6fc8e · 0x3ac578…6ea861
+              </p>
+            </div>
+          </li>
+          <li className="docket__item">
+            <div>
+              <p>
+                The market resolves against the trade. CEPID records each outcome with the
+                on-chain txHash as evidence, and the losing experiences become memories.
+              </p>
+            </div>
+          </li>
+          <li className="docket__item">
+            <div>
+              <p>
+                Three settled losses on the same conditions form a pattern, and the pattern
+                hardens into a scar — weighted heavily on every future retrieval.
+              </p>
+            </div>
+          </li>
+          <li className="docket__item">
+            <div>
+              <p>
+                <strong>Run 2.</strong> A new process meets the same kind of situation. The
+                agent pays $0.01 USDC (x402) to retrieve, and CEPID returns its own prior
+                losses, the pattern, and the scar.
+              </p>
+            </div>
+          </li>
+          <li className="docket__item">
+            <div>
+              <p>
+                The gate returns DENY. The decision becomes <span className="evidence">NO_TRADE</span> —
+                no signature, no transaction — and the blocked decision is recorded against
+                the retrieval that produced it.
+              </p>
+            </div>
+          </li>
+          <li className="docket__item">
+            <div>
+              <p>
+                Nothing here is asserted. The decision row carries a{' '}
+                <span className="evidence">retrievalId</span> pointing at a real retrieval row;
+                the retrieval row carries the memories it returned; the outcome rows carry the
+                txHashes. The influence edge is derivable from the data, not narrated.
+              </p>
+            </div>
+          </li>
+        </ol>
+      </Section>
+
+      <Section title="Where to inspect it">
+        <div className="exhibit-box">
           <p className="prose">
-            Nothing in the demo is asserted. The decision row carries a
-            <span className="mono"> retrievalId</span> that points at a real
-            retrieval row; the retrieval row carries the memories it
-            returned; the outcome row carries the memories the decision
-            actually used (filtered by the platform's
-            <span className="mono"> INFLUENCE_NOT_SUPPORTED</span> rule). The
-            influence edge is derivable from the data, not narrated.
+            <Link href="/memories">Memories</Link> — every experience, with an influence
+            record showing which later decisions it shaped or stopped.
           </p>
-        </Panel>
-      </Band>
-
-      <Band title="Where to look" tight>
-        <Panel>
-          <ul className="reasons">
-            <li className="reasons__item">
-              <span className="reasons__index mono">·</span>
-              <span><Link className="link" href="/memories">Memories</Link> — every experience the agent has recorded, with the influence edge surfaced in detail.</span>
-            </li>
-            <li className="reasons__item">
-              <span className="reasons__index mono">·</span>
-              <span><Link className="link" href="/activity">Activity</Link> — the journal of retrievals, decisions, outcomes, and settled payments in the order they happened.</span>
-            </li>
-            <li className="reasons__item">
-              <span className="reasons__index mono">·</span>
-              <span><Link className="link" href="/agents">Agents</Link> — the registry, including a second isolated agent that has never seen any of the above.</span>
-            </li>
-          </ul>
-        </Panel>
-      </Band>
+          <p className="prose">
+            <Link href="/activity">Activity</Link> — the journal of retrievals, verdicts,
+            decisions, and outcomes in the order they happened.
+          </p>
+          <p className="prose" style={{ marginBottom: 0 }}>
+            <Link href="/agents">Agents</Link> — the registry, including a second isolated
+            agent that has never seen any of the above.
+          </p>
+        </div>
+      </Section>
     </div>
   );
 }

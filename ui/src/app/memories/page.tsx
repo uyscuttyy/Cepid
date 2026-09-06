@@ -1,8 +1,8 @@
 import Link from 'next/link';
-import { Band, EmptyState, Metric, Metrics, PageHead } from '@/components/Primitives';
+import { EmptyState, Figure, Figures, Ledger, PageHead, Section } from '@/components/Primitives';
 import { getClient } from '@/lib/data';
 import { CepidClientError } from '@/lib/cepid';
-import { DASH, formatCount, formatPercent, formatRelative, outcomeTone, shortId, trendOf } from '@/lib/format';
+import { DASH, formatCount, formatPercent, formatRelative, shortId } from '@/lib/format';
 import type { MemoryRecord } from '@/lib/cepid';
 
 export const dynamic = 'force-dynamic';
@@ -15,10 +15,9 @@ const PAGE_SIZE = 50;
 /**
  * MEMORIES — what CEPID has remembered, for the currently-authenticated agent.
  *
- * Memories are read from `/v1/agents/history` (the API scopes by the bearer
- * key, so a single dashboard key shows a single agent's memory). When the
- * platform is reachable but no key is set, this page renders a clear
- * "set CEPID_API_KEY" empty state — not a fabricated zero.
+ * Read from `/v1/agents/history` (the API scopes by the bearer key, so a
+ * single dashboard key shows a single agent's memory). No key, no rows —
+ * never a fabricated zero.
  */
 export default async function MemoriesPage() {
   const client = getClient();
@@ -45,16 +44,16 @@ export default async function MemoriesPage() {
 
   if (needsAuth) {
     return (
-      <div className="page">
+      <div>
         <PageHead
-          eyebrow="Memories"
+          filing="CEPID-002"
           title="Sign in to view memory"
-          sub="The Memories page reads the bearer key's agent's memory from /v1/agents/history. Set CEPID_API_KEY in the dashboard's environment to populate it."
+          lede="This docket reads the bearer key's agent's memory from /v1/agents/history. Set CEPID_API_KEY in the dashboard's environment to populate it."
         />
         <EmptyState
           title="CEPID_API_KEY not set"
           body="Generate a key on the Developers page, then set CEPID_API_KEY=cepid_… in the dashboard's environment and restart."
-          action={<Link className="link" href="/developers">Open Developers →</Link>}
+          action={<Link href="/developers">Open Developers</Link>}
         />
       </div>
     );
@@ -62,21 +61,21 @@ export default async function MemoriesPage() {
 
   if (error === 'UNAUTHORIZED') {
     return (
-      <div className="page">
-        <PageHead eyebrow="Memories" title="Key not recognised" />
+      <div>
+        <PageHead filing="CEPID-002" title="Key not recognised" />
         <EmptyState
           title="The platform rejected the key"
           body="CEPID_API_KEY is set but the platform says it is not valid. Generate a new key on the Developers page."
-          action={<Link className="link" href="/developers">Rotate key →</Link>}
+          action={<Link href="/developers">Rotate key</Link>}
         />
       </div>
     );
   }
 
-  if (error === 'MEMORY_SUBSTRATE_UNAVAILABLE' || error) {
+  if (error) {
     return (
-      <div className="page">
-        <PageHead eyebrow="Memories" title="Substrate down" />
+      <div>
+        <PageHead filing="CEPID-002" title="Substrate down" />
         <EmptyState
           title="CEPID could not read its own memory"
           body={`The API responded with ${error}. The substrate is load-bearing — without it, the dashboard has nothing to show. Restore the Sibyl sidecar and refresh.`}
@@ -87,11 +86,11 @@ export default async function MemoriesPage() {
 
   if (memories.length === 0) {
     return (
-      <div className="page">
+      <div>
         <PageHead
-          eyebrow="Memories"
+          filing="CEPID-002"
           title="No memories yet"
-          sub="Every memory is one situation, one decision, one outcome. As the agent acts, memories appear here and start influencing future decisions."
+          lede="Every memory is one situation, one decision, one outcome. As the agent acts, memories appear here and start influencing future decisions."
         />
         <EmptyState
           title="The agent has not recorded anything yet"
@@ -102,117 +101,109 @@ export default async function MemoriesPage() {
   }
 
   return (
-    <div className="page">
+    <div>
       <PageHead
-        eyebrow="Memories"
-        aside={
-          <span className="mono">
-            {formatCount(memories.length)} {memories.length === 1 ? 'memory' : 'memories'}
-          </span>
-        }
+        filing={`CEPID-002 · ${formatCount(memories.length)} ${memories.length === 1 ? 'memory' : 'memories'} on file`}
         title="What CEPID has remembered"
-        sub="Experiences, patterns, and scars — held in the substrate for the authenticated agent."
+        lede="Experiences, patterns, and scars — held in the substrate for the authenticated agent."
       />
 
-      <Band tight>
-        <Metrics>
-          <Metric label="Experiences" value={formatCount(memories.length)} />
-          <Metric
+      <Section title="Standing">
+        <Figures>
+          <Figure label="Experiences" value={formatCount(memories.length)} />
+          <Figure
             label="Settled"
             value={settled.length > 0 ? formatCount(settled.length) : DASH}
-            sub={settled.length > 0 ? `${good} good · ${bad} bad` : 'nothing resolved yet'}
+            note={settled.length > 0 ? `${good} good · ${bad} bad` : 'nothing resolved yet'}
           />
-          <Metric
+          <Figure
             label="Patterns"
             value={formatCount(patterns.length)}
-            tone={patterns.length > 0 ? 'blue' : 'muted'}
-            sub="formed from three similar experiences"
+            tone={patterns.length > 0 ? 'deny' : undefined}
+            note="three similar experiences"
           />
-          <Metric
+          <Figure
             label="Scars"
             value={formatCount(scars.length)}
-            tone={scars.length > 0 ? 'neg' : 'muted'}
-            sub="weighted more heavily on retrieval"
+            tone={scars.length > 0 ? 'deny' : undefined}
+            note="weighted heavily on retrieval"
           />
-        </Metrics>
-      </Band>
+        </Figures>
+      </Section>
 
       {(patterns.length > 0 || scars.length > 0) && (
-        <Band title="What has generalised" tight>
-          <div className="split split--even">
-            <div>
-              <span className="label">Patterns · {formatCount(patterns.length)}</span>
-              {patterns.slice(0, 8).map((p) => (
-                <div className="row" key={p.id}>
-                  <span className="row__lead">{formatPercent(p.strength)}</span>
-                  <span className="row__main">
-                    <span className="row__title">{p.description}</span>
-                    <span className="row__sub mono">{p.signature}</span>
+        <Section title="What has generalised">
+          <Ledger>
+            {patterns.slice(0, 8).map((p) => (
+              <div className="ledger__row" key={p.id}>
+                <span className="ledger__id">pattern</span>
+                <span>
+                  <span className="ledger__title">{p.description}</span>
+                  <span className="ledger__sub">
+                    <span className="evidence">{p.signature}</span>
                   </span>
-                  <span className="row__trail">
-                    <span>{p.good}G · {p.bad}B</span>
+                </span>
+                <span className="ledger__meta">
+                  <span className="evidence">{p.good}G · {p.bad}B</span>
+                </span>
+              </div>
+            ))}
+            {scars.slice(0, 8).map((s) => (
+              <div className="ledger__row" key={s.id}>
+                <span className="ledger__id">scar</span>
+                <span>
+                  <span className="ledger__title">{s.description}</span>
+                  <span className="ledger__sub">
+                    strength <span className="evidence">{formatPercent(s.strength)}</span>
                   </span>
-                </div>
-              ))}
-            </div>
-            <div>
-              <span className="label">Scars · {formatCount(scars.length)}</span>
-              {scars.slice(0, 8).map((s) => (
-                <div className="row" key={s.id}>
-                  <span className="row__lead">{formatPercent(s.strength)}</span>
-                  <span className="row__main">
-                    <span className="row__title">{s.description}</span>
-                  </span>
-                  <span className="row__trail">
-                    <span>{s.memoryIds.length} memories</span>
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </Band>
+                </span>
+                <span className="ledger__meta">
+                  <span className="evidence">{s.memoryIds.length} memories</span>
+                </span>
+              </div>
+            ))}
+          </Ledger>
+        </Section>
       )}
 
-      <Band
+      <Section
         title="Experiences"
-        hint={
+        note={
           sorted.length > PAGE_SIZE
             ? `showing the ${PAGE_SIZE} most recent of ${formatCount(sorted.length)}`
             : 'most recent first'
         }
       >
-        <div className="rows rows--memories">
+        <Ledger>
           {shown.map((m) => (
             <MemoryRow key={m.id} m={m} />
           ))}
-        </div>
-      </Band>
+        </Ledger>
+      </Section>
     </div>
   );
 }
 
 function MemoryRow({ m }: { m: MemoryRecord }) {
-  const tone = m.outcome ? outcomeTone(m.outcome) : 'muted';
   const sign = m.outcome?.magnitude;
+  const verdict = m.outcome?.valence === 'bad' ? 'against' : m.outcome?.valence === 'good' ? 'for' : 'open';
   return (
-    <Link className="row row--link" href={`/memories/${m.id}`}>
-      <span className="row__lead">{shortId(m.id)}</span>
-      <span className="row__main">
-        <span className="row__title">
-          {m.situation.text || m.situation.domain}
-        </span>
-        <span className="row__sub mono">
-          {m.situation.domain} → {m.action}
+    <Link className="ledger__row" href={`/memories/${m.id}`}>
+      <span className="ledger__id">{shortId(m.id)}</span>
+      <span>
+        <span className="ledger__title">{m.situation.text || m.situation.domain}</span>
+        <span className="ledger__sub">
+          <span className="evidence">
+            {m.situation.domain} → {m.action}
+          </span>{' '}
+          · {m.outcome?.result ?? 'pending'} · {verdict}
         </span>
       </span>
-      <span className="row__trail">
-        <span className={`num-${trendOf(sign ?? null)}`}>
+      <span className="ledger__meta">
+        <span className="evidence">
           {sign === undefined || sign === null ? DASH : (sign > 0 ? '+' : '') + sign.toFixed(2)}
-        </span>
-        <span style={{ color: 'var(--text-3)' }}>{formatRelative(m.createdAt)}</span>
-        <span className={`chip chip--${tone}`} style={{ marginLeft: 'var(--s-3)' }}>
-          {m.outcome?.result ?? 'pending'}
-        </span>
+        </span>{' '}
+        · {formatRelative(m.createdAt)}
       </span>
     </Link>
   );

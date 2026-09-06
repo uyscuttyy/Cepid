@@ -1,174 +1,151 @@
 import Link from 'next/link';
-import {
-  Band,
-  EmptyState,
-  InlineFact,
-  Metric,
-  Metrics,
-  Notice,
-  PageHead,
-} from '@/components/Primitives';
+import { EmptyState, Figure, Figures, Ledger, Notice, Section, Stamp } from '@/components/Primitives';
 import { getClient } from '@/lib/data';
 import { CepidClientError } from '@/lib/cepid';
-import { formatCount, formatRelative, formatClock, shortId, DASH } from '@/lib/format';
+import { formatCount, formatRelative } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 /**
- * OVERVIEW — what CEPID remembers, right now.
- *
- * The product's whole claim is "the agent met the same situation twice and
- * behaved differently the second time because CEPID remembered". This page
- * makes that visible: what agents are connected, what they have remembered,
- * what was just retrieved, and whether the substrate that holds the memory
- * is up. Every number is read from the live /v1/* API.
+ * OVERVIEW — the whole claim on one page: the agent met the same
+ * situation twice and behaved differently the second time because
+ * CEPID remembered. The hero is the two verdicts, stamped.
  */
 export default async function OverviewPage() {
   const client = getClient();
-  const [agents, readiness] = await Promise.all([
-    client.listAgents().catch((e: unknown) => {
-      if (e instanceof CepidClientError) return { _error: e.code as string };
-      return { _error: 'UNREACHABLE' as string };
-    }),
+  const hasKey = !!process.env.CEPID_API_KEY;
+
+  const [agents, readiness, activity] = await Promise.all([
+    client.listAgents().catch((e: unknown) => ({
+      _error: e instanceof CepidClientError ? e.code : 'UNREACHABLE',
+    })),
     client.getReadiness().catch(() => null),
+    hasKey
+      ? client.getActivity('self').catch((e: unknown) => ({
+          _error: e instanceof CepidClientError ? e.code : 'UNREACHABLE',
+        }))
+      : Promise.resolve(null),
   ]);
 
   const platformDown = !readiness;
-  const substrateDown = readiness?.substrate === 'down';
+  const substrateDown = readiness?.substrate !== 'ok';
+  const agentList =
+    agents && !('_error' in agents)
+      ? (agents as Array<{ id: string; name: string; description: string; createdAt: string }>)
+      : [];
 
-  // Per-agent memory + activity are read with each agent's key, but the
-  // platform's `listAgents` route is open and returns only the registry.
-  // We surface the *count* of agents and link into per-agent pages that
-  // ask for a key (the Developers page documents the flow).
-  const agentList = (agents && !('_error' in agents) ? agents : []) as Array<{ id: string; name: string; description: string; createdAt: string }>;
-  const platformError = agents && '_error' in agents ? (agents as { _error: string })._error : null;
+  const events =
+    activity && !('_error' in activity)
+      ? (activity as { events: Array<Record<string, unknown>> }).events
+      : [];
+  const denies = events.filter((e) => e.type === 'gate.denied');
+  const lastDeny = denies
+    .map((e) => String(e.at ?? ''))
+    .sort()
+    .at(-1);
+  const decisions = events.filter((e) => e.type === 'decision.recorded').length;
 
   return (
-    <div className="page">
+    <div>
       <div className="hero">
-        <div className="hero__top">
-          <span className="hero__divider" aria-hidden="true" />
-          <span className="label" style={{ letterSpacing: '0.14em' }}>
-            Memory infrastructure for autonomous agents
+        <p className="kicker">
+          <span className="filing-no">CEPID-001</span> · Memory infrastructure for autonomous agents
+        </p>
+        <h1 className="hero-title">An agent that remembers is an agent that can be stopped.</h1>
+        <p className="lede">
+          CEPID stores the situations an agent encounters, the decisions it made, and the
+          outcomes that followed — then hands back the experience it needs{' '}
+          <strong>before its next decision</strong>. When retrieved memory proves the
+          proposed action already failed, the constraint gate returns DENY, and the agent
+          does not trade.
+        </p>
+        <div className="hero__stamps">
+          <Stamp verdict="ALLOW" size="hero" />
+          <span className="hero__arrow" aria-hidden="true">
+            →
           </span>
+          <Stamp verdict="DENY" size="hero" lands />
         </div>
-        <h1 className="hero__title">An agent that remembers.</h1>
-        <p className="hero__lede">
-          CEPID stores the situations an agent encounters, the decisions it
-          made, the outcomes that followed, and the lessons drawn — and hands
-          back the experience the agent needs <strong>before its next decision</strong>.
+        <p className="hero__caption">
+          Run 1 lost on-chain. Run 2 met the same situation and was stopped by its own
+          scar. Read the docket on the <Link href="/demo">Demo</Link> page.
         </p>
       </div>
 
       {platformDown && (
-        <div style={{ marginBottom: 'var(--s-6)' }}>
-          <Notice title="Platform unreachable" tone="neg">
-            The CEPID API at <code>CEPID_API_URL</code> did not respond. Set
-            it in your environment and restart the dashboard.
-          </Notice>
-        </div>
+        <Notice title="Platform unreachable" tone="deny">
+          The CEPID API at <span className="evidence">CEPID_API_URL</span> did not respond.
+          Set it in your environment and restart the dashboard.
+        </Notice>
       )}
 
       {!platformDown && substrateDown && (
-        <div style={{ marginBottom: 'var(--s-6)' }}>
-          <Notice title="Substrate down" tone="warn">
-            The CEPID API is reachable, but the Sibyl sidecar is not. Retrieval,
-            recording, and history all fail until the sidecar is restored. This
-            is by design — the substrate is load-bearing.
-          </Notice>
-        </div>
+        <Notice title="Substrate down" tone="warn">
+          The CEPID API is reachable, but the Sibyl sidecar is not. Retrieval, recording,
+          and history all fail until the sidecar is restored. This is by design — the
+          substrate is load-bearing.
+        </Notice>
       )}
 
-      {platformError && platformError !== 'UNAUTHORIZED' && (
-        <div style={{ marginBottom: 'var(--s-6)' }}>
-          <Notice title="Could not list agents" tone="neg">
-            The platform returned <code>{platformError}</code>. Check the API logs.
-          </Notice>
-        </div>
-      )}
+      <Section
+        title="Standing of the platform"
+        note={readiness ? `${readiness.service} · ${readiness.version}` : undefined}
+      >
+        <Figures>
+          <Figure label="Agents on record" value={formatCount(agentList.length)} note="registered" />
+          <Figure
+            label="Decisions recorded"
+            value={hasKey ? formatCount(decisions) : '—'}
+            note={hasKey ? 'in this journal' : 'needs CEPID_API_KEY'}
+          />
+          <Figure
+            label="Trades stopped"
+            value={hasKey ? formatCount(denies.length) : '—'}
+            tone={hasKey && denies.length > 0 ? 'deny' : undefined}
+            note={lastDeny ? `last ${formatRelative(lastDeny)}` : 'no DENY on record'}
+          />
+          <Figure
+            label="Substrate"
+            value={readiness ? (readiness.substrate === 'ok' ? 'Up' : 'Down') : '—'}
+            tone={readiness ? (readiness.substrate === 'ok' ? 'allow' : 'deny') : undefined}
+            note="Sibyl memory layer"
+          />
+        </Figures>
+      </Section>
 
-      <Band title="Agents" hint={<Link className="link" href="/agents">All agents →</Link>}>
+      <Section title="Agents" note={<Link href="/agents">Full registry</Link>}>
         {agentList.length === 0 ? (
           <EmptyState
             title="No agents yet"
-            body={
-              platformError === 'UNAUTHORIZED'
-                ? 'Listing agents requires an API key. Generate one on the Developers page, set CEPID_API_KEY, and restart the dashboard.'
-                : 'The registry is empty. The first step is to register an agent — the Developers page walks through it.'
-            }
-            action={
-              <Link className="link" href="/developers">
-                Register an agent →
-              </Link>
-            }
+            body="The registry is empty. The first step is to register an agent — the Developers page walks through it."
+            action={<Link href="/developers">Register an agent</Link>}
           />
         ) : (
-          <div className="rows rows--memories">
+          <Ledger>
             {agentList.slice(0, 10).map((a) => (
-              <Link className="row row--link" href={`/agents/${a.id}`} key={a.id}>
-                <span className="row__lead">{shortId(a.id)}</span>
-                <span className="row__main">
-                  <span className="row__title">{a.name}</span>
-                  {a.description && <span className="row__sub">{a.description}</span>}
+              <Link className="ledger__row" href={`/agents/${a.id}`} key={a.id}>
+                <span className="ledger__id">{a.id.slice(0, 12)}</span>
+                <span>
+                  <span className="ledger__title">{a.name}</span>
+                  {a.description && <span className="ledger__sub">{a.description}</span>}
                 </span>
-                <span className="row__trail">
-                  <span style={{ color: 'var(--text-3)' }}>{formatRelative(a.createdAt)}</span>
-                </span>
+                <span className="ledger__meta">{formatRelative(a.createdAt)}</span>
               </Link>
             ))}
-          </div>
+          </Ledger>
         )}
-      </Band>
+      </Section>
 
-      <Band
-        title="Platform"
-        hint={
-          readiness ? (
-            <span style={{ color: 'var(--text-3)' }}>
-              {readiness.service} · {readiness.version}
-            </span>
-          ) : undefined
-        }
-      >
-        <Metrics>
-          <Metric
-            label="Agents"
-            value={formatCount(agentList.length)}
-            sub={agentList.length === 0 ? 'registry empty' : 'registered'}
+      {!hasKey && (
+        <Section title="Read the journal">
+          <EmptyState
+            title="Set CEPID_API_KEY to see decisions and stops"
+            body="Counts of decisions and DENY verdicts come from the bearer key's journal. Generate a key on the Developers page, set it, and restart the dashboard."
+            action={<Link href="/developers">Open Developers</Link>}
           />
-          <Metric
-            label="API"
-            value={readiness ? 'reachable' : 'down'}
-            tone={readiness ? 'pos' : 'neg'}
-            sub={readiness ? readiness.version : 'unreachable'}
-          />
-          <Metric
-            label="Sibyl substrate"
-            value={readiness ? (readiness.substrate === 'ok' ? 'connected' : 'disconnected') : DASH}
-            tone={!readiness ? 'muted' : readiness.substrate === 'ok' ? 'pos' : 'neg'}
-            sub={readiness ? (readiness.substrate === 'ok' ? 'memory layer live' : 'core function offline') : 'no signal'}
-          />
-          <Metric
-            label="Build"
-            value="v1"
-            tone="muted"
-            sub="public API"
-          />
-        </Metrics>
-      </Band>
-
-      <Band title="Next step" tight>
-        <EmptyState
-          title="Register an agent, point its SDK at this API"
-          body="The product is reachable by any external agent over HTTP. The Developers page shows how to mint a key, install @cepid/client, and make the first retrieve() call."
-          action={
-            <Link className="link" href="/developers">
-              Open Developers →
-            </Link>
-          }
-        />
-      </Band>
+        </Section>
+      )}
     </div>
   );
 }
