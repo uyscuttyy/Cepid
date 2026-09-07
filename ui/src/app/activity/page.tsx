@@ -15,7 +15,7 @@ export const metadata = { title: 'Activity' };
  * the platform did: retrievals, verdicts, decisions, outcomes, settlements.
  */
 export default async function ActivityPage() {
-  const client = getClient();
+  const client = await getClient();
   const needsAuth = !process.env.CEPID_API_KEY;
   let events: AgentEvent[] = [];
   let error: string | null = null;

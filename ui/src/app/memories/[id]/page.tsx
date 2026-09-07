@@ -19,7 +19,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
  */
 export default async function MemoryDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const client = getClient();
+  const client = await getClient();
 
   let memory: Awaited<ReturnType<typeof client.getMemory>> | null = null;
   let error: string | null = null;

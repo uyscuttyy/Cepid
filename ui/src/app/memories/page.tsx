@@ -20,7 +20,7 @@ const PAGE_SIZE = 50;
  * never a fabricated zero.
  */
 export default async function MemoriesPage() {
-  const client = getClient();
+  const client = await getClient();
   const needsAuth = !process.env.CEPID_API_KEY;
   let result: Awaited<ReturnType<typeof client.getAgentHistory>> | null = null;
   let error: string | null = null;

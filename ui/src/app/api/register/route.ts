@@ -25,7 +25,7 @@ export async function POST(req: Request) {
   }
   const desc = typeof description === 'string' ? description.slice(0, 512) : '';
 
-  const client = getClient();
+  const client = await getClient();
   try {
     const result = await client.register({ name, description: desc });
     return NextResponse.json({

@@ -13,7 +13,7 @@ export const runtime = 'nodejs';
  * CEPID remembered. The hero is the two verdicts, stamped.
  */
 export default async function OverviewPage() {
-  const client = getClient();
+  const client = await getClient();
   const hasKey = !!process.env.CEPID_API_KEY;
 
   const [agents, readiness, activity] = await Promise.all([

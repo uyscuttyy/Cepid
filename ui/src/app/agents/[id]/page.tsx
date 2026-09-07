@@ -19,7 +19,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
  */
 export default async function AgentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const client = getClient();
+  const client = await getClient();
 
   const [agents, history, activity, usage] = await Promise.all([
     client.listAgents().catch(() => []),

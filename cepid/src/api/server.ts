@@ -12,6 +12,7 @@
  *   GET  /v1/memories/:id         (free)  tenant-scoped detail
  *   GET  /v1/agents/:id/memory    (free)  dashboard feed
  *   GET  /v1/agents               (free)  registry listing (for the UI)
+ *   DELETE /v1/agents/self        (free)  delete the key's own agent + tenant data
  *   GET  /v1/activity             (free)  journal-derived feed
  *   GET  /healthz  /readyz        (free)  liveness/readiness (readyz includes sidecar)
  *
@@ -106,6 +107,14 @@ export class CepidApi {
         return this.json(res, 401, { error: 'UNAUTHORIZED', message: 'Provide Authorization: Bearer cepid_…' });
       }
       const agentId = auth.agentId;
+
+      // Self-deletion: the key's own agent only. Removes the registry row,
+      // its keys, and its tenant data (journal events persist, append-only).
+      if (method === 'DELETE' && path === '/v1/agents/self') {
+        const deleted = await this.registry.deleteAgent(agentId);
+        if (!deleted) return this.json(res, 404, { error: 'NOT_FOUND' });
+        return this.json(res, 200, { deleted: true, agentId });
+      }
 
       if (method === 'POST' && path === '/v1/memories/query') {
         // x402 gate (D2/D3): this route costs $0.01. Unpaid → 402 with

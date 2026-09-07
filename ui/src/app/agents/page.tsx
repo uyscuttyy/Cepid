@@ -13,7 +13,7 @@ export const metadata = { title: 'Agents' };
  * AGENTS — the registry. Open to all; private data stays behind keys.
  */
 export default async function AgentsPage() {
-  const client = getClient();
+  const client = await getClient();
   let agents: Array<{
     id: string; name: string; description: string; status: 'active' | 'revoked'; createdAt: string; keyCount: number;
   }> = [];

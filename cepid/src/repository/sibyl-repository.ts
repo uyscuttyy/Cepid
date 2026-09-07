@@ -241,4 +241,16 @@ export class SibylRepository implements MemoryRepository {
     );
     return res.entities.map((row) => ({ ...row.body, id: row.name }) as Record<string, unknown>);
   }
+
+  async deleteRecord(agentId: string, category: string, name: string): Promise<boolean> {
+    try {
+      const res = await this.call<{ deleted: boolean }>(
+        'DELETE', `/entities/${category}/${encodeURIComponent(name)}`, agentId,
+      );
+      return res.deleted === true;
+    } catch (e) {
+      if (e instanceof CepidError && e.code === 'NOT_FOUND') return false;
+      throw e;
+    }
+  }
 }

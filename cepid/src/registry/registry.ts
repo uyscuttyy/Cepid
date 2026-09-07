@@ -178,6 +178,46 @@ export class AgentRegistry {
     });
     return true;
   }
+
+  /**
+   * Delete an agent and its tenant data (self-service removal).
+   *
+   * Removes the registry row, all key rows, and every entity in the
+   * agent's tenant (memories, patterns, scars, retrievals, decisions,
+   * outcomes, usage rows). Journal events are append-only in the
+   * substrate and are NOT removed — but with the registry row gone the
+   * agent no longer appears anywhere in the product, and its tenant id
+   * is unresolvable (keys are deleted, so nothing can authenticate as
+   * it again). Returns false when the agent does not exist.
+   */
+  async deleteAgent(agentId: string): Promise<boolean> {
+    const agent = await this.getAgent(agentId);
+    if (!agent) return false;
+
+    // Agent-tenant entities, by category.
+    for (const category of ['memory', 'pattern', 'scar', 'retrieval', 'decision', 'outcome', 'usage']) {
+      const rows = await this.repo.listRecords(agentId, category).catch(() => []);
+      for (const row of rows) {
+        const name = typeof row.id === 'string' ? row.id : null;
+        if (name) await this.repo.deleteRecord(agentId, category, name).catch(() => false);
+      }
+    }
+
+    // Platform-tenant rows: the agent row plus every key row for it.
+    const keys = await this.repo.listRecords(PLATFORM_TENANT, 'apikey').catch(() => []);
+    for (const k of keys) {
+      if (k.agentId === agentId && typeof k.id === 'string') {
+        await this.repo.deleteRecord(PLATFORM_TENANT, 'apikey', k.id).catch(() => false);
+      }
+    }
+    await this.repo.deleteRecord(PLATFORM_TENANT, 'agent', agentId).catch(() => false);
+    await this.repo.appendEvent(PLATFORM_TENANT, {
+      type: 'agent.deleted',
+      at: new Date().toISOString(),
+      agentId,
+    });
+    return true;
+  }
 }
 
 export { sha256 as hashKey };

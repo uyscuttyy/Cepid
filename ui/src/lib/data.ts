@@ -7,25 +7,28 @@
  *
  * Configuration:
  *   CEPID_API_URL   (required) — e.g. http://127.0.0.1:8787
- *   CEPID_API_KEY   (optional) — required to read private data
- *
- * The instance is cached per-process so a single page load with N data
- * fetches doesn't open N TLS sockets.
+ *   CEPID_API_KEY   (optional, process) — default key
+ *   cepid_demo_key  (cookie) — overrides the env key for a demo session
  */
 import 'server-only';
+import { cookies } from 'next/headers';
 import { createCepidClient, type CepidClient } from './cepid';
 
-let _client: CepidClient | null = null;
+/** Resolve the active key: demo session cookie takes precedence, then env. */
+export async function resolveApiKey(): Promise<string | undefined> {
+  const jar = await cookies();
+  const cookieKey = jar.get('cepid_demo_key')?.value;
+  if (cookieKey) return cookieKey;
+  return process.env.CEPID_API_KEY;
+}
 
-export function getClient(): CepidClient {
-  if (_client) return _client;
+export async function getClient(): Promise<CepidClient> {
   const baseUrl = process.env.CEPID_API_URL;
   if (!baseUrl) {
     throw new Error('CEPID_API_URL is not set. The dashboard needs the platform API.');
   }
-  const apiKey = process.env.CEPID_API_KEY;
-  _client = createCepidClient({ baseUrl, apiKey });
-  return _client;
+  const apiKey = await resolveApiKey();
+  return createCepidClient({ baseUrl, apiKey });
 }
 
 export interface ShellSummary {
@@ -39,7 +42,8 @@ export interface ShellSummary {
 
 /** Fast, fail-soft summary the shell uses to populate the rail. */
 export async function getShellSummary(): Promise<ShellSummary> {
-  const client = getClient();
+  const apiKey = await resolveApiKey();
+  const client = createCepidClient({ baseUrl: process.env.CEPID_API_URL!, apiKey });
   const [agents, readiness] = await Promise.all([
     client.listAgents().catch(() => null),
     client.getReadiness().catch(() => null),
@@ -47,6 +51,6 @@ export async function getShellSummary(): Promise<ShellSummary> {
   return {
     agentCount: agents?.length ?? null,
     substrate: readiness?.substrate ?? null,
-    authenticated: Boolean(process.env.CEPID_API_KEY),
+    authenticated: Boolean(apiKey),
   };
 }

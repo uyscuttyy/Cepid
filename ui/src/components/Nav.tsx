@@ -10,7 +10,7 @@ import { getClient } from '@/lib/data';
  * "what is the platform doing, right now" for any viewer.
  */
 export async function Masthead() {
-  const client = getClient();
+  const client = await getClient();
   const readiness = await client.getReadiness().catch(() => null);
 
   const platformUp = readiness?.ok === true;

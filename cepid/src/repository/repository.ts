@@ -57,6 +57,7 @@ export interface MemoryRepository {
   putRecord(agentId: string, category: string, name: string, body: Record<string, unknown>): Promise<void>;
   getRecord(agentId: string, category: string, name: string): Promise<Record<string, unknown> | null>;
   listRecords(agentId: string, category: string): Promise<Array<Record<string, unknown>>>;
+  deleteRecord(agentId: string, category: string, name: string): Promise<boolean>;
 }
 
 /** New memory id. */
