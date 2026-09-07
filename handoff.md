@@ -110,8 +110,22 @@ any run.
 
 ## Next phase
 
-Not started. Begins only on explicit instruction. No implementation,
-no commits, no deploys until then.
+Phase 5 — LIVE TWO-RUN PROOF: DONE 07-SEP-26 as job demo-3a900aeb.
+- Agent: exactly one, Demo Gate Runner agent-87675581-253.
+- Run 1: 3× ALLOW YES with on-chain txs 0x9fbd…/0xebcb…/0xd55a… on
+  market 0xec92af8c5c73d8bb9a35ac18fe8140cec636f43d (primed to 0.5416
+  after one primeMore top-up); resolved NO tx 0x840b…; 3 LOSS settled.
+- Run 2: DENY "bad-outcome memory at 70%+ similarity blocks this action
+  (3 memories)", NO_TRADE, txHash null, blocking ids mem-deeba70d-519,
+  mem-19a461b9-31b, mem-0deada42-93c, on market
+  0x6e07d857b333f384888a39b865d75a66d4ac0f8c.
+- Activity (via API): memory.created 4, decision.recorded 4,
+  gate.denied 1, memory.settled 3, outcome.recorded 3.
+- Wallet 0x2CF0…1897: $23.47 before the run (user bridged $20).
+- Code: primeMore fix (demo-runner/src/chain.ts + runner.ts) committed
+  with this handoff; mock suite still 1/1 PASS + tsc clean.
+- Still open: PAT pasted in chat needs rotation; UI re-check from the
+  browser; submission track.
 
 ## Exact state after these documentation corrections
 

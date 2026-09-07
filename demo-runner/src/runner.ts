@@ -212,8 +212,19 @@ export async function runDemoJob(jobId: string, deps: RunnerDeps): Promise<DemoR
     result.market1 = m1.address;
     log('market1', `Market 1 at ${m1.address}, expires ${new Date(m1.expiresAt * 1000).toISOString()}`);
     await deps.chain.fundAndPrime(m1.address, FUND_USDC, PRIME_NO_SHARES);
-    const price = await deps.chain.yesPrice(m1.address);
+    // The strategy needs |mid - 0.5| >= 0.02 to see an edge. Liquidity
+    // depth varies per deployment, so top the prime up until the price is
+    // far enough off 0.5 (max 3 top-ups) instead of running NO_TRADE legs.
+    let price = await deps.chain.yesPrice(m1.address);
+    for (let top = 0; top < 3 && Math.abs(price - 0.5) < 0.025; top++) {
+      log('market1', `yesPrice ≈ ${price.toFixed(4)} — no edge, priming more NO`);
+      await deps.chain.primeMore(m1.address, PRIME_NO_SHARES);
+      price = await deps.chain.yesPrice(m1.address);
+    }
     log('market1', `Funded + primed, yesPrice ≈ ${price.toFixed(4)}`);
+    if (Math.abs(price - 0.5) < 0.02) {
+      throw new Error(`prime could not move yesPrice off 0.5 (≈ ${price.toFixed(4)}) — aborting demo`);
+    }
 
     log('run1', 'Run 1: three trades on a fresh agent');
     const restore = withJobEnv({ ...env, CEPID_TEST_MARKET_ADDRESS: m1.address });

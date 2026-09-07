@@ -500,9 +500,14 @@ If that doesn't hold end-to-end, CEPID isn't finished.
   - `demo-runner` throwaway-stack test FAILED on mock risk-cap defaults,
     FIXED same day (runner job env now sets the three collateral caps);
     suite 1/1 PASS + tsc clean.
-  - Uncommitted 0.0.0.0 bind changes (`cepid` ApiDeps/host/config,
-    demo-runner `server.listen`) — present in `git status`, untested,
-    uncommitted.
+  - Live prime edge fix (same day): strategy needs |mid-0.5|>=0.02 but the
+    standard prime landed yesPrice at exactly 0.5000 → 3 NO_TRADE legs.
+    Runner now tops the prime up (new `primeMore` buyNo on both chain
+    adapters, max 3) until |price-0.5|>=0.025, else fails fast.
+  - Live two-run proof re-run SAME DAY as job demo-3a900aeb: green.
+  - 0.0.0.0 bind changes (`cepid` ApiDeps/host/config,
+    demo-runner `server.listen`) — committed in a8ab172, live in this
+    proof (services bound 0.0.0.0).
   - `data/` (agent-local sessions/events JSON) is back in the repo root
     despite the Phase 0 wipe decision — directory listing confirmed;
     live-vs-residue undetermined.

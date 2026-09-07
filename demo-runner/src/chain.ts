@@ -51,6 +51,9 @@ export interface ChainAdapter {
   deployMarket(opts: { durationSeconds: number }): Promise<MarketHandle>;
   /** Approve + fund + prime (buyNo) so yesPrice ≈ 0.52. Returns prime txHash. */
   fundAndPrime(market: string, fundUsdc: bigint, primeNoShares: bigint): Promise<{ fundTx: Hash; primeTx: Hash }>;
+  /** Extra buyNo top-up when the prime did not move the price far enough
+   *  off 0.5 for the strategy's edge rule. Returns the txHash. */
+  primeMore(market: string, noShares: bigint): Promise<Hash>;
   yesPrice(market: string): Promise<number>;
   buyYes(market: string, shares: bigint): Promise<Hash>;
   resolveNo(market: string): Promise<Hash>;
@@ -151,6 +154,13 @@ export class ViemChainAdapter implements ChainAdapter {
     const primeData = encodeFunctionData({ abi: MARKET_ABI, functionName: 'buyNo', args: [primeNoShares] });
     const primeTx = await this.send(m, primeData);
     return { fundTx, primeTx };
+  }
+
+  async primeMore(market: string, noShares: bigint): Promise<Hash> {
+    const data = encodeFunctionData({ abi: MARKET_ABI, functionName: 'buyNo', args: [noShares] });
+    const tx = await this.send(market as Address, data);
+    await this.wait(12_000);
+    return tx;
   }
 
   async yesPrice(market: string): Promise<number> {
@@ -256,6 +266,11 @@ export class FakeChainAdapter implements ChainAdapter {
     if (!m) throw new Error('unknown market');
     m.funded = true;
     return { fundTx: this.tx('fund'), primeTx: this.tx('prime') };
+  }
+
+  async primeMore(market: string, _noShares: bigint): Promise<Hash> {
+    if (!this.markets.get(market)) throw new Error('unknown market');
+    return this.tx('prime-more');
   }
 
   async yesPrice(_market: string): Promise<number> {
