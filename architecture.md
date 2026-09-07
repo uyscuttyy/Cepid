@@ -1,19 +1,23 @@
 # CEPID — Architecture
 
-Status: **v2 — restructure plan approved direction, pre-implementation.**
-Source of truth: the product redefinition (CEPID = persistent memory infrastructure
-for autonomous agents; the trading agent is one consumer/demo) and the decisions
-recorded in this document.
+Status: **v3 — implemented through Phase 10 + demo-runner (07-SEP-26 audit).**
+Source of truth: the product redefinition (CEPID = memory infrastructure
++ deterministic ALLOW/DENY gate; the trading agent is one consumer/demo)
+and the decisions recorded in this document.
 
 - Audited: 01-SEP-26 (v1 audit of the old codebase; findings preserved in §2).
-- Restructure plan: 02-SEP-26 (this version).
+- Restructure plan: 02-SEP-26.
+- Phases 0–10 implemented 02–06 SEP-26 (see `project-plan.md`).
+- Demo-runner + UI demo mode + self-deletion: 06–07 SEP-26 (commit b416ae2).
+- Re-audit (master-prompt Phase 0): 07-SEP-26 — see `handoff.md`.
 - Hackathon: Sibyl Labs (registered). Build window closes **10-SEP-26 23:59 UTC**.
   Gate: Sibyl Memory must be load-bearing — deleting it must break the core
   function. Rubric: memory 40 / innovation 25 / execution 20 / pitch 15,
   PMF +10, partner-stack multiplier up to ×1.25 (Base + Virtuals).
 
-Nothing in Part 3 has been executed yet. This document is the plan the
-implementation follows; deviations get written back here, not improvised.
+Part 3 below is now a record of what was built, not a plan. Deviations were
+written back here as they landed (§8 gate/backfill, §10 DELETE route,
+demo-runner in §4).
 
 ---
 
@@ -170,6 +174,16 @@ cepid/
 │   └── script/Deploy.s.sol
 │
 ├── ui/                           # CEPID dashboard (Next.js; restructured §10)
+│   └── Case-File docket UI + "Run the demo" one-click proof (§13,
+│       `app/demo/DemoRunControl.tsx` → `/api/demo/*` → demo-runner)
+│
+├── demo-runner/                  # @cepid/demo-runner — maintainer-side proof service
+│   ├── src/server.ts             # localhost HTTP: POST /jobs, GET /jobs/:id (single-flight)
+│   ├── src/runner.ts             # job state machine (agent→market1→run1→wait→
+│   │                             # resolve→settle→market2→run2→done/failed)
+│   ├── src/chain.ts              # ChainAdapter: ViemChainAdapter (live) +
+│   │                             # FakeChainAdapter (tests); cast fallback for deploys
+│   └── test/demo-runner.test.ts  # full proof on throwaway stack (FAILING 07-SEP-26, see handoff)
 │
 └── docs/                         # developer docs: registration, API, integration
     ├── api.md  agents.md  demo.md  x402.md
@@ -362,6 +376,7 @@ retrieved ──▶ gate (ALLOW | DENY) ──▶ used in a decision ──▶ o
 | `GET /v1/agents/:id/memory` `…/history` | no | dashboard + agent page feeds |
 | `GET /v1/activity` | no | journal-derived feed (tenant or platform scoped) |
 | `GET /v1/usage/:agentId` | no | metered calls + settled payments |
+| `DELETE /v1/agents/self` | no | self-deletion (key's own agent only): removes registry row, keys, tenant data. Journal events persist (append-only). Added 06-SEP-26 so demo re-runs never accumulate registry rows. |
 | `GET /healthz` `/readyz` | no | readiness includes sidecar health |
 
 The demo agent uses **only** these routes via `sdk/` (`@cepid/client`) —
@@ -480,3 +495,24 @@ If that doesn't hold end-to-end, CEPID isn't finished.
 - One Sibyl DB file, one host — single-node deployment shape.
 - The demo agent's vocabulary (`LONG`, `NO_TRADE`, PnL) is profile data, not
   platform concepts; the platform never special-cases trading.
+- **2026-09-07 audit — verified this session (read the file or ran the
+  command):**
+  - `demo-runner` throwaway-stack test FAILED on mock risk-cap defaults,
+    FIXED same day (runner job env now sets the three collateral caps);
+    suite 1/1 PASS + tsc clean.
+  - Uncommitted 0.0.0.0 bind changes (`cepid` ApiDeps/host/config,
+    demo-runner `server.listen`) — present in `git status`, untested,
+    uncommitted.
+  - `data/` (agent-local sessions/events JSON) is back in the repo root
+    despite the Phase 0 wipe decision — directory listing confirmed;
+    live-vs-residue undetermined.
+  - Runner funds constant is $4.00 USDC (`MIN_BALANCE_USDC` in
+    `demo-runner/src/runner.ts`).
+  - `demo-runner/data/demo-agent.json` holds a live key, gitignored,
+    never committed (verified via git).
+- **Carried from prior sessions, NOT re-verified 07-SEP-26:**
+  - Live x402 paywall reported disabled (free mode); code + `x402.test.ts`
+    still pin paid behavior.
+  - Live two-run on-chain proof incl. txHashes (`project-plan.md` §Phase 10).
+  - Demo wallet balance, exact live ports, registry contents post-wipe.
+  - PAT exposure in chat history — rotate before submission regardless.

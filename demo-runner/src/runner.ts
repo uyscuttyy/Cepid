@@ -183,6 +183,12 @@ export async function runDemoJob(jobId: string, deps: RunnerDeps): Promise<DemoR
       CEPID_NETWORK: deps.network,
       CEPID_RPC_URL_BASE_SEPOLIA: deps.rpcUrl,
       CEPID_DATA_DIR: deps.dataDir,
+      // Risk caps for the demo job. The engine defaults (0.5/order,
+      // 1.0/session) reject the demo's own 0.59-collateral legs, so the
+      // job configures what the live .env and the obedience tests use.
+      CEPID_MAX_COLLATERAL: '1.0',
+      CEPID_SESSION_MAX_COLLATERAL: '3.0',
+      CEPID_SESSION_MAX_ORDERS: '3',
     };
     const tradeOpts = {
       execute: true as const,

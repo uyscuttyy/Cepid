@@ -12,6 +12,9 @@ export interface CepidServerConfig {
   sidecarUrl: string;
   /** HTTP API port (Phase 4). */
   port: number;
+  /** Bind address. Default 0.0.0.0 so the API is reachable from outside
+   *  the local machine. */
+  host: string;
   /** Price for /v1/memories/query (Phase 7). */
   queryPriceUsd: string;
 }
@@ -37,6 +40,7 @@ export function loadServerConfig(): CepidServerConfig {
     dataDir: readString('CEPID_DATA_DIR', './data'),
     sidecarUrl: readString('CEPID_SIDECAR_URL', 'http://127.0.0.1:8765'),
     port: readNumber('CEPID_PORT', 8787),
+    host: readString('CEPID_HOST', '0.0.0.0'),
     queryPriceUsd: readString('CEPID_QUERY_PRICE', '$0.01'),
   };
 }

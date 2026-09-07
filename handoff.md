@@ -1,106 +1,127 @@
 # CEPID — Handoff
 
-Updated: 04-SEP-26 (end of Phase 8 — UI on the live API).
+Updated: 07-SEP-26 (master-prompt cycle, Phase 0 re-audit — NO CODE CHANGED).
 
-## What CEPID is now
+## Current phase
 
-Persistent **memory infrastructure for autonomous agents**, persisted by
-Sibyl Memory and only Sibyl Memory — there is no fallback store, by
-decision and by code. The trading agent is a demo consumer. Source of
-truth: `architecture.md` (v2).
+Phase 0 (re-audit) — Status: COMPLETE. Implementation phases 0–10 plus
+demo-runner/UI-demo-mode are done in the tree (HEAD `b416ae2` + 4
+uncommitted files). Next: fix the demo-runner test, land the bind change,
+re-verify, then submission track.
 
-## Current state — Phase 8 (UI restructure) complete
+## What was completed (this audit — read-only)
 
-```
-cepid/      @cepid/server        tsc clean · engine + registry + HTTP API v1 + x402
-sidecar/    FastAPI + sibyl-memory-client 0.8.0 · 7/7 pytest · THE substrate
-sdk/        @cepid/client        tsc clean · the SDK every agent uses, ours included
-agents/demo-trader              pure consumer over HTTP — no engine imports
-contracts/  Foundry              CepidTestMarket compiles · deploy script ready
-ui/         @cepid-ui (Next.js)  9/9 client tests · tsc clean · next build clean
-                                reconnected to the live /v1/* API
-```
+- Full repo walk: `cepid/`, `sdk/`, `agents/demo-trader/`, `contracts/`,
+  `scripts/`, `sidecar/`, `ui/`, `demo-runner/`, `docs/`, `data/`, env keys.
+- Read: `prd.md` (rewritten to v3 — gate + Base execution product),
+  `architecture.md` (status v2→v3, §4 demo-runner, §10 DELETE route,
+  §17 audit findings), `project-plan.md` (verified vs tree),
+  `memory.md` + `docs/constraint-gate.md` (both current, no change needed).
+- Sibyl docs fetched (docs.sibyllabs.org): local-first SQLite + FTS5,
+  zero embeddings, file-based tiers — consistent with architecture §3's
+  verified findings (client 0.8.0, tenant isolation, 5 MB cap). GitHub
+  repo not re-read (network/time); in-repo probes stand.
+- Baseline executed: typecheck clean in all 5 workspaces; tests
+  server 44/44, client 8/8, demo-trader 10/10, ui 9/9,
+  **demo-runner 0/1 FAIL**.
 
-The load-bearing claim remains mechanical: `cepid/test/sibyl-substrate.test.ts`
-kills the sidecar and asserts every core operation throws
-`MEMORY_SUBSTRATE_UNAVAILABLE`. Restart survival and cross-tenant isolation
-are proven against real sidecar processes on scratch DBs.
+## What works (verified this audit unless marked ↩)
 
-## Phase 8 (this commit) — what changed
+Gate (ALLOW/DENY + reasons + blocking ids), lifecycle/backfill/scars,
+registry + isolation, x402 paid retrieval (tested; ↩ live-process
+paywall state carried from prior sessions, not re-verified — see below),
+demo agent over HTTP/SDK only, CepidTestMarket + deploy/resolve scripts,
+UI Case-File docket + one-click demo page + proxy routes + session
+cookie, demo-runner state machine (↩ live on-chain proof of 06-SEP-26
+carried from prior session records — 3 ALLOW txs → NO resolve → 3 LOSS
+→ DENY/NO_TRADE per `project-plan.md` Phase 10; txHashes NOT re-checked
+on Basescan in this audit), self-deletion route, docs + doc-contract
+tests.
 
-The UI was the only piece of the restructure that hadn't landed. It was
-reading the **old** demo-agent JSON store at `${CEPID_DATA_DIR}/data/*.json`
-and broke when the restructure wiped that directory. It is now wired to
-the live `/v1/*` API through a typed client.
+↩ = carried over from prior sessions, not freshly verified 07-SEP-26.
 
-- New: `ui/src/lib/cepid.ts` — typed client (fetch-injectable for tests).
-  Surfaces `MEMORY_SUBSTRATE_UNAVAILABLE` and other server errors as
-  `CepidClientError`. 9 unit tests pin the contract.
-- New: `ui/test/cepid-client.test.ts` — RED→GREEN over the contract.
-- New: `ui/src/app/api/register/route.ts` — server proxy for the
-  registration form (the key never leaves the platform).
-- Rewritten pages (against the generic `MemoryRecord` schema, not trading):
-  Overview, Memories (list + detail), Agents (list + detail), Activity,
-  Demo, Developers.
-- New nav per architecture §13: Overview / Memories / Agents / Activity /
-  Demo / Developers. The dead `/trades` link and broken `Section`/`Stat`
-  imports are gone.
-- Deleted: orphaned `Header.tsx`/`Footer.tsx`/`view.ts`, the JSON-
-  pass-through `/api/agent|/api/events|/api/memory/*|/api/performance|
-  /api/sessions` routes, and every page that imported missing primitives.
-- `next build` and `tsc --noEmit` are green. The `ui/` workspace is now in
-  the monorepo root. The build warning about multiple lockfiles is
-  silenced by pinning `outputFileTracingRoot` in `next.config.mjs`.
-- `CEPID_DATA_DIR` is no longer consulted anywhere.
+## What does not work
 
-## How to run (dev)
+- `demo-runner/test/demo-runner.test.ts` FAILED on the throwaway stack
+  (mock risk-cap defaults rejected the legs) — FIXED 07-SEP-26, now 1/1
+  PASS. Root cause was job config, not product code; see fix note in
+  "Known bugs" below.
+- No services running (verified: no listeners on 8765/8797/8798/3000/3007
+  this audit; host rebooted, /tmp wiped). ↩ Registry contents after the
+  wipe (empty vs surviving rows) NOT verified — no DB file was inspected.
+- Uncommitted: `cepid/src/api/{server,main}.ts`,
+  `cepid/src/core/config.ts`, `demo-runner/src/server.ts` (0.0.0.0 bind).
 
-```bash
-# 1. Sidecar (terminal 1)
-cd sidecar && uv venv && uv pip install -e . pytest httpx
-SIDECAR_TOKEN=dev uv run uvicorn sibyl_sidecar.main:app --port 8765
+## Known bugs / risks
 
-# 2. CEPID API (terminal 2)
-CEPID_SIDECAR_URL=http://127.0.0.1:8765 SIDECAR_TOKEN=dev \
-  npx tsx cepid/src/api/main.ts     # listens on 127.0.0.1:8787
+1. Demo-runner mock-path failure — FIXED 07-SEP-26. Cause: the runner's
+   `withJobEnv` omitted risk-collateral vars, so engine defaults (0.5
+   per-order / 1.0 session) rejected the mock legs priced at 0.59.
+   Fix (runner-only, `demo-runner/src/runner.ts`): job env now sets
+   `CEPID_MAX_COLLATERAL='1.0'`, `CEPID_SESSION_MAX_COLLATERAL='3.0'`,
+   `CEPID_SESSION_MAX_ORDERS='3'` — same values as live `.env` and the
+   obedience tests. Verified: test 1/1 PASS + tsc clean. ↩ The live-path
+   on-chain proof remains a prior-session claim, not re-verified here.
+2. `data/` RESOLVED 07-SEP-26: wiped (contents were gitignored agent-local
+   session/event exhaust from 06-SEP live runs + later test runs; writers
+   `sessions/repository.ts` + `persistence/events.ts` mkdir recursively so
+   dirs recreate). Platform journal remains the source of truth. The writer
+   modules themselves are still live code — removing them is a separate,
+   unscoped cleanup item, not done here.
+3. ↩ Live API x402 state carried from prior sessions (reported free-mode
+   for the demo); NOT verified this audit — no API process was running to
+   probe. Code (`cepid/src/api/x402.ts`) + `x402.test.ts` (green) still
+   pin paid behavior. Any "paid retrieval" claim about a running system
+   needs a live probe first.
+4. ↩ PAT exposure in chat history carried from prior sessions — remains
+   documented here, NOT verified (no git history search for secrets was
+   run this audit). Rotate before submission regardless.
+5. `demo-runner/data/demo-agent.json` holds a live demo key (gitignored,
+   confirmed never committed — keep it that way).
 
-# 3. UI (terminal 3)
-cd ui
-CEPID_API_URL=http://127.0.0.1:8787 CEPID_API_KEY=<a key> npm run dev
-# open http://localhost:3000
+## Important implementation decisions (carried)
 
-# 4. Tests
-npm test                                # all workspaces
-npm test -w cepid-ui                    # 9/9 client tests
-npm run typecheck                       # all four workspaces
-```
+Extend, don't rewrite. Gate is pure/deterministic, no LLM on the permit
+path. Sibyl-only persistence (no fallback). Tenant 1:1 via bearer key.
+Only ALLOW → signed tx; DENY → NO_TRADE, market untouched. Tests on
+throwaway stacks; shipping substrate never polluted. UI serves strangers
+only (no CLI/cast/keys on their machine). Deploys via `cast` fallback
+(viem 2.56 unreliable on Base Sepolia public RPC).
 
-To exercise the dashboard without a key, omit `CEPID_API_KEY` — the
-registry and liveness views still load; private pages show a clear
-"set CEPID_API_KEY" empty state.
+## Files/components changed (this audit — docs only)
 
-Env: `CEPID_MEMORY_DB` (sidecar DB), `SIDECAR_TOKEN`, `SIDECAR_PORT`,
-`CEPID_SIDECAR_URL` (CEPID → sidecar), `CEPID_API_URL` (UI → CEPID),
-`CEPID_API_KEY` (UI → CEPID, optional for the public surface).
+- `prd.md` rewritten (v3).
+- `architecture.md`: status, §4, §10, §17.
+- `handoff.md`: this rewrite.
+- NO implementation code touched.
 
-## Next steps
+## Environment/configuration requirements
 
-1. Phase 10 — two-run demo per architecture §15 against the live stack.
-2. Submission — README, 2–5 min demo video, two build-in-public posts.
+↩ The following is carried from prior sessions (operator runbook in chat
+07-SEP-26, COPY/PASTE DEMO) and was NOT re-verified this audit: port
+assignments (sidecar 8765 / API 8797 — note the old handoff also cites
+8787; `.env` `CEPID_PORT` is the arbiter / runner 8798 / UI 3000 dev or
+3007 start), required keys (`DEMO_AGENT_PRIVATE_KEY`,
+`CEPID_RPC_URL_BASE_SEPOLIA`, `CEPID_API_KEY`, `CAST_BIN`/foundry), and
+the funded-wallet minimum (runner constant is $4.00 USDC
+`MIN_BALANCE_USDC` — verified in `demo-runner/src/runner.ts` this audit;
+the actual wallet balance was NOT checked). Verify each value live before
+any run.
 
-## Known limitations (carried)
+## Next phase
 
-- Server tests (`npm test -w @cepid/server`) require `uvicorn` on PATH —
-  environmental, not changed by Phase 8.
-- The demo agent's local run-events file (`agents/demo-trader/src/persistence/events.ts`)
-  is still listed in the architecture as Phase-5-deletable. The platform
-  journal is now the source of truth; the file is dead weight. Drop it
-  in the Phase 9 boundary.
-- No background decay scheduler; decay ticks on the API path.
+Not started. Begins only on explicit instruction. No implementation,
+no commits, no deploys until then.
 
-## What this handoff no longer says
+## Exact state after these documentation corrections
 
-The previous handoff (02-SEP-26) said "Phase 4 complete, Phase 5 next."
-That was correct at the time but stale by the time it was read. The
-phases are now real: Phases 0–8 are done. Read `project-plan.md` for
-the current log.
+- Modified (uncommitted): `prd.md`, `architecture.md`, `handoff.md`
+  (docs only); `demo-runner/src/runner.ts` (step-2 fix, uncommitted).
+  Untouched: the 4 pre-existing uncommitted bind files.
+- Port discrepancy RESOLVED: `.env` `CEPID_PORT=8797` is canonical for
+  this machine; `8787` is only the code fallback default
+  (`core/config.ts:42`) and the UI takes `CEPID_API_URL` with no port
+  assumption. No code change needed.
+- Test state: server 44/44, client 8/8, demo-trader 10/10, ui 9/9,
+  demo-runner 1/1 PASS (step-2 fix verified + tsc clean). Full suite
+  green.

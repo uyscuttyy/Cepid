@@ -53,6 +53,9 @@ export interface ApiDeps {
   repo: MemoryRepository;
   registry: AgentRegistry;
   port: number;
+  /** Bind address. Defaults to '0.0.0.0' so the service is reachable from
+   *  outside the local machine (the product is a server, not a CLI). */
+  host?: string;
   /** x402 gate; null (or unset CEPID_PAYMENT_WALLET_KEY) leaves routes free. */
   paywall?: X402Paywall | null;
 }
@@ -73,7 +76,9 @@ export class CepidApi {
   }
 
   listen(): Promise<void> {
-    return new Promise((resolve) => this.server.listen(this.deps.port, '127.0.0.1', resolve));
+    return new Promise((resolve) =>
+      this.server.listen(this.deps.port, this.deps.host ?? '0.0.0.0', resolve),
+    );
   }
 
   close(): Promise<void> {

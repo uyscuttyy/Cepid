@@ -101,6 +101,6 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
   });
 });
 
-server.listen(PORT, '127.0.0.1', () => {
-  console.log(`[demo-runner] listening on 127.0.0.1:${PORT}`);
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`[demo-runner] listening on 0.0.0.0:${PORT}`);
 });

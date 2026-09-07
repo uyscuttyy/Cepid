@@ -28,7 +28,7 @@ async function main() {
       })
     : null;
 
-  const api = await startApi({ repo, registry, port: config.port, paywall });
+  const api = await startApi({ repo, registry, port: config.port, host: config.host, paywall });
 
   // Readiness requires the substrate; fail fast at boot if it's missing.
   try {
@@ -39,7 +39,7 @@ async function main() {
     process.exit(1);
   }
 
-  console.log(`[cepid] api listening on http://127.0.0.1:${config.port}`);
+  console.log(`[cepid] api listening on http://${config.host ?? '0.0.0.0'}:${config.port}`);
   console.log(`[cepid] substrate: ${config.sidecarUrl}`);
   console.log(`[cepid] x402: ${paywall ? `PAID — /v1/memories/query at ${paywall.price} → ${paywall.payTo}` : 'free (no payment wallet configured)'}`);
 
