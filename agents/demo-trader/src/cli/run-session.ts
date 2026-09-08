@@ -6,6 +6,7 @@
  * both --confirm-approval and --confirm-order to actually broadcast.
  */
 import { runOnce } from '../app.js';
+import { MockMarketProvider } from '../market/mock-provider.js';
 import type { MockMarketSeed } from '../market/index.js';
 
 const args = process.argv.slice(2);
@@ -17,7 +18,7 @@ const useMock = args.includes('--mock');
 async function main() {
   const opts: Parameters<typeof runOnce>[0] = { execute, confirmApproval, confirmOrder };
   if (useMock) {
-    opts.mockSeed = defaultMockSeed();
+    opts.provider = new MockMarketProvider(defaultMockSeed());
   }
   const result = await runOnce(opts);
   console.log(JSON.stringify({

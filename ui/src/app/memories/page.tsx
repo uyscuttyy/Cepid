@@ -94,7 +94,7 @@ export default async function MemoriesPage() {
         />
         <EmptyState
           title="The agent has not recorded anything yet"
-          body="Run a session with the SDK or the demo agent, then come back — the first retrieval row and the first memory will appear here."
+          body="Register an agent and run a session with the SDK, then come back — the first retrieval row and the first memory will appear here."
         />
       </div>
     );

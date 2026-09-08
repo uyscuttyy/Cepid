@@ -11,6 +11,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { CepidClient } from '@cepid/client';
 import { runOnce } from '../src/app.js';
+import { MockMarketProvider } from '../src/market/mock-provider.js';
 import { toSituation, type TradingConditions } from '../src/config/types.js';
 import { withStack } from './helpers/stack.js';
 
@@ -55,7 +56,7 @@ test('gate obedience (full stack): DENY → no trade, no txHash, blocked decisio
     // Gate fires server-side; agent must obey even with execute:true.
     const result = await runOnce({
       execute: true, confirmApproval: true, confirmOrder: true,
-      mockSeed: mockSeed(),
+      provider: new MockMarketProvider(mockSeed()),
     });
 
     assert.equal(result.intent.direction, 'NO_TRADE', 'DENY forces NO_TRADE');
@@ -91,7 +92,7 @@ test('gate obedience (full stack): ALLOW → trade proceeds normally', async () 
     // Fresh agent, no memory → ALLOW → base strategy fires.
     const result = await runOnce({
       execute: true, confirmApproval: true, confirmOrder: true,
-      mockSeed: mockSeed(),
+      provider: new MockMarketProvider(mockSeed()),
     });
 
     assert.equal(result.intent.direction, 'YES', 'ALLOW lets the base strategy fire');

@@ -94,10 +94,12 @@ export class MockMarketProvider implements MarketProvider {
     if (!snapshot) return { ok: false, error: 'market_not_found' };
     if (!snapshot.active) return { ok: false, error: 'market_inactive' };
 
-    const orderId = `mock-${++this.orderCounter}`;
+    const orderId = `mock-order-${++this.orderCounter}`;
     const filledPrice = intent.price;
     const filledShares = intent.shares;
-    const txHash = `0xmock${orderId.padStart(60, '0')}`;
+    // Deliberately NOT hex: no mock receipt may ever be mistaken for a
+    // real Base transaction hash.
+    const txHash = `mock-tx-${this.orderCounter}-no-chain`;
 
     this.trades.push({
       id: orderId,

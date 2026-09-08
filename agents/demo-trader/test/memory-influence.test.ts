@@ -11,6 +11,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { CepidClient } from '@cepid/client';
 import { runOnce } from '../src/app.js';
+import { MockMarketProvider } from '../src/market/mock-provider.js';
 import { toSituation, type TradingConditions } from '../src/config/types.js';
 import { withStack } from './helpers/stack.js';
 
@@ -39,7 +40,7 @@ test('thesis (full stack): fresh agent trades; scarred agent vetoes', async () =
     delete process.env.AGENT_PRIVATE_KEY;
 
     // 1) Fresh agent: no memory → base strategy fires, nothing retrieved.
-    const first = await runOnce({ execute: false, confirmApproval: false, confirmOrder: false, mockSeed: mockSeed() });
+    const first = await runOnce({ execute: false, confirmApproval: false, confirmOrder: false, provider: new MockMarketProvider(mockSeed()) });
     assert.equal(first.intent.direction, 'YES', 'no memory → base strategy fires');
     assert.equal(first.retrieved.length, 0, 'empty substrate → zero memories returned');
     assert.ok(first.retrievalId, 'a retrieval row exists anyway (the edge is recorded even when empty)');
@@ -59,7 +60,7 @@ test('thesis (full stack): fresh agent trades; scarred agent vetoes', async () =
 
     // 3) Same market again — the memories come back over HTTP and the
     //    agent's reasoning vetoes the trade.
-    const second = await runOnce({ execute: false, confirmApproval: false, confirmOrder: false, mockSeed: mockSeed() });
+    const second = await runOnce({ execute: false, confirmApproval: false, confirmOrder: false, provider: new MockMarketProvider(mockSeed()) });
     assert.ok(second.retrieved.length > 0, 'earned memories retrieved over the API');
     const scarHit = second.retrieved.some((m) => m.isScar || m.isPattern);
     assert.ok(scarHit, 'a pattern or scar formed and was returned');

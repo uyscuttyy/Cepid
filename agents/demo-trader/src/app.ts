@@ -32,7 +32,6 @@ import type {
   ExecutionState,
   MarketSnapshot,
   OrderBook,
-  Outcome,
   ResolutionResult,
   RiskDecision,
   TradeIntent,
@@ -46,16 +45,18 @@ import { MemoryInformedDecisionEngine } from './decision/engine.js';
 import { DeterministicStrategy } from './strategy/base-strategy.js';
 import { deriveContext } from './strategy/context.js';
 import { evaluateRisk } from './risk/engine.js';
-import { SessionRepository } from './sessions/repository.js';
 import { EventStore } from './persistence/events.js';
 
 export interface OrchestratorOptions {
   execute: boolean;
   confirmApproval: boolean;
   confirmOrder: boolean;
-  mockSeed?: Parameters<typeof createMarketProvider>[1];
-  /** Override the resolution the mock market resolves to (demo control). */
-  mockResolution?: Outcome;
+  /**
+   * Explicit market provider override — the ONLY way to run against an
+   * in-memory market, and reserved for tests. Production always goes
+   * through createMarketProvider(config) below.
+   */
+  provider?: MarketProvider;
 }
 
 export interface RunResult {
@@ -89,11 +90,12 @@ export async function runOnce(opts: OrchestratorOptions): Promise<RunResult> {
     apiKey: process.env.CEPID_API_KEY,
   });
 
-  const sessions = new SessionRepository(config.dataDir);
   const events = new EventStore();
-  const provider = createMarketProvider(config, opts.mockSeed);
+  const provider = opts.provider ?? createMarketProvider(config);
 
-  const session = await openSession(sessions, config);
+  // Session state is in-memory only: spend caps apply to this run.
+  // Durable truth lives in the platform journal, never in local files.
+  const session = openSession(config);
 
   const markets = await provider.listActiveMarkets({ assets: ['BTC', 'ETH'], timeframes: ['15M', '1H'] });
   if (markets.length === 0) {
@@ -270,8 +272,6 @@ export async function runOnce(opts: OrchestratorOptions): Promise<RunResult> {
   memoryId = memory.id;
   session.memoryIds.push(memory.id);
 
-  await sessions.upsert(session);
-
   // Agent-local run events: facts about the run only — no wallet, no keys.
   await events.append({
     type: 'run',
@@ -321,7 +321,7 @@ export async function runOnce(opts: OrchestratorOptions): Promise<RunResult> {
   };
 }
 
-async function openSession(sessions: SessionRepository, config: AgentConfig): Promise<AgentSession> {
+function openSession(config: AgentConfig): AgentSession {
   const id = `sess-${randomUUID().slice(0, 8)}`;
   const session: AgentSession = {
     id,
@@ -333,7 +333,6 @@ async function openSession(sessions: SessionRepository, config: AgentConfig): Pr
     collateralSpent: 0,
     network: config.network,
   };
-  await sessions.upsert(session);
   return session;
 }
 

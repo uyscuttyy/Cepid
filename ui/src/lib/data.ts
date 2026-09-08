@@ -2,23 +2,18 @@
  * Server-only data access for the dashboard.
  *
  * The dashboard reads the CEPID /v1/* API through the typed client. There is
- * no local file read, no demo-agent JSON store, and no fallback. If the
+ * no local file read and no fallback. If the
  * platform is unreachable, the page renders an honest empty/down state.
  *
  * Configuration:
  *   CEPID_API_URL   (required) — e.g. http://127.0.0.1:8787
  *   CEPID_API_KEY   (optional, process) — default key
- *   cepid_demo_key  (cookie) — overrides the env key for a demo session
  */
 import 'server-only';
-import { cookies } from 'next/headers';
 import { createCepidClient, type CepidClient } from './cepid';
 
-/** Resolve the active key: demo session cookie takes precedence, then env. */
+/** Resolve the active key from the process environment. */
 export async function resolveApiKey(): Promise<string | undefined> {
-  const jar = await cookies();
-  const cookieKey = jar.get('cepid_demo_key')?.value;
-  if (cookieKey) return cookieKey;
   return process.env.CEPID_API_KEY;
 }
 

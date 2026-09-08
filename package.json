@@ -7,7 +7,6 @@
     "cepid",
     "sdk",
     "agents/demo-trader",
-    "demo-runner",
     "ui"
   ],
   "scripts": {

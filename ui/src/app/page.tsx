@@ -69,7 +69,8 @@ export default async function OverviewPage() {
         </div>
         <p className="hero__caption">
           Run 1 lost on-chain. Run 2 met the same situation and was stopped by its own
-          scar. Read the docket on the <Link href="/demo">Demo</Link> page.
+          scar. Register an agent on the <Link href="/developers">Developers</Link> page,
+          propose an action over the API, and watch the <Link href="/activity">Activity</Link> log.
         </p>
       </div>
 

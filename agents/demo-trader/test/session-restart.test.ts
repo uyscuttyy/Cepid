@@ -7,6 +7,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { runOnce } from '../src/app.js';
+import { MockMarketProvider } from '../src/market/mock-provider.js';
 import { toSituation, type TradingConditions } from '../src/config/types.js';
 import { withStack } from './helpers/stack.js';
 import { readFileSync } from 'node:fs';
@@ -38,7 +39,7 @@ test('e2e: fresh session (substrate restarted) is vetoed by persisted memory', a
     delete process.env.AGENT_PRIVATE_KEY;
 
     // Session 1: fresh memory → fires.
-    const first = await runOnce({ execute: false, confirmApproval: false, confirmOrder: false, mockSeed: mockSeed() });
+    const first = await runOnce({ execute: false, confirmApproval: false, confirmOrder: false, provider: new MockMarketProvider(mockSeed()) });
     assert.equal(first.intent.direction, 'YES');
 
     // Earn the bad memories over the public API (as prior runs would).
@@ -58,7 +59,7 @@ test('e2e: fresh session (substrate restarted) is vetoed by persisted memory', a
     await stack.restartSidecar();
 
     // Session 2: same situation; memory comes only from the restarted store.
-    const second = await runOnce({ execute: false, confirmApproval: false, confirmOrder: false, mockSeed: mockSeed() });
+    const second = await runOnce({ execute: false, confirmApproval: false, confirmOrder: false, provider: new MockMarketProvider(mockSeed()) });
     assert.equal(second.intent.direction, 'NO_TRADE', 'fresh session is vetoed by persisted memory');
     assert.ok(second.decisionContext.memoryIds.length > 0);
 

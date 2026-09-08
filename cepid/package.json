@@ -13,7 +13,8 @@
   },
   "scripts": {
     "test": "node --test --test-concurrency=2 --import tsx \"test/**/*.test.ts\"",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "start": "node --loader tsx/esm src/api/main.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

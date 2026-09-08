@@ -37,7 +37,9 @@ function readPrivateKey(): `0x${string}` | null {
 }
 
 export function loadConfig(): AgentConfig {
-  const network = readString('CEPID_NETWORK', 'mock') as AgentConfig['network'];
+  // No default: an unset network must fail fast, never silently paper-trade.
+  // base-sepolia = test market, base = Limitless mainnet (real funds).
+  const network = readString('CEPID_NETWORK') as AgentConfig['network'];
   if (!['base', 'base-sepolia', 'mock'].includes(network)) {
     throw new Error(`Unsupported CEPID_NETWORK: ${network}`);
   }
